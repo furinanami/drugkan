@@ -1,0 +1,182 @@
+Processing...
+Done!
+/home/bioinfo202200130116/bioinfo/codebasev5/graphnn/run_multi_gpu_comparison.py:415: UserWarning: It is not recommended to directly access the internal storage format `data` of an 'InMemoryDataset'. If you are absolutely certain what you are doing, access the internal storage via `InMemoryDataset._data` instead to suppress this warning. Alternatively, you can access stacked individual attributes of every graph via `dataset.{attr_name}`.
+  dataset.data.y,
+================================================================================
+多GPU并行对比实验
+================================================================================
+
+使用GPU: [0, 1, 2, 3]
+GNN类型: ['gin', 'gcn']
+KAN类型: fourier
+训练轮数: 100
+path_current_dir /home/bioinfo202200130116/bioinfo/codebasev5/graphnn/deepadr
+path_current_dir /home/bioinfo202200130116/bioinfo/codebasev5/graphnn/deepadr
+
+实验目录: /home/bioinfo202200130116/bioinfo/codebasev5/graphnn/data/processed/DrugComb_loewe_thresh_1/data_v1/experiments/multi_gpu_comparison_2026-05-04_21-09-08
+
+加载数据集...
+✓ ID字段 (drug_a_id, drug_b_id, cell_id) 将被保存到collated data中
+数据集大小: 160228
+fold_num: 0
+train data
+class: 0 norm count: 0.8518242417412862
+class: 1 norm count: 0.1481757582587138
+validation data
+class: 0 norm count: 0.8518605195413059
+class: 1 norm count: 0.14813948045869413
+test data
+class: 0 norm count: 0.8518379828995819
+class: 1 norm count: 0.14816201710041815
+
+-------------------------
+fold_num: 1
+train data
+class: 0 norm count: 0.8518242417412862
+class: 1 norm count: 0.1481757582587138
+validation data
+class: 0 norm count: 0.8518605195413059
+class: 1 norm count: 0.14813948045869413
+test data
+class: 0 norm count: 0.8518379828995819
+class: 1 norm count: 0.14816201710041815
+
+-------------------------
+fold_num: 2
+train data
+class: 0 norm count: 0.8518329100318126
+class: 1 norm count: 0.14816708996818737
+validation data
+class: 0 norm count: 0.8518605195413059
+class: 1 norm count: 0.14813948045869413
+test data
+class: 0 norm count: 0.8518067777569743
+class: 1 norm count: 0.14819322224302564
+
+-------------------------
+fold_num: 3
+train data
+class: 0 norm count: 0.8518255261606741
+class: 1 norm count: 0.14817447383932597
+validation data
+class: 0 norm count: 0.8518605195413059
+class: 1 norm count: 0.14813948045869413
+test data
+class: 0 norm count: 0.8518333593384303
+class: 1 norm count: 0.14816664066156968
+
+-------------------------
+fold_num: 4
+train data
+class: 0 norm count: 0.8518255261606741
+class: 1 norm count: 0.14817447383932597
+validation data
+class: 0 norm count: 0.8518605195413059
+class: 1 norm count: 0.14813948045869413
+test data
+class: 0 norm count: 0.8518333593384303
+class: 1 norm count: 0.14816664066156968
+
+-------------------------
+训练集: 115363
+验证集: 12819
+测试集: 32046
+path_current_dir /home/bioinfo202200130116/bioinfo/codebasev5/graphnn/deepadr
+path_current_dir /home/bioinfo202200130116/bioinfo/codebasev5/graphnn/deepadr
+path_current_dir /home/bioinfo202200130116/bioinfo/codebasev5/graphnn/deepadr
+path_current_dir /home/bioinfo202200130116/bioinfo/codebasev5/graphnn/deepadr
+path_current_dir /home/bioinfo202200130116/bioinfo/codebasev5/graphnn/deepadr
+path_current_dir /home/bioinfo202200130116/bioinfo/codebasev5/graphnn/deepadr
+path_current_dir /home/bioinfo202200130116/bioinfo/codebasev5/graphnn/deepadr
+path_current_dir /home/bioinfo202200130116/bioinfo/codebasev5/graphnn/deepadr
+path_current_dir /home/bioinfo202200130116/bioinfo/codebasev5/graphnn/deepadr
+path_current_dir /home/bioinfo202200130116/bioinfo/codebasev5/graphnn/deepadr
+path_current_dir /home/bioinfo202200130116/bioinfo/codebasev5/graphnn/deepadr
+path_current_dir /home/bioinfo202200130116/bioinfo/codebasev5/graphnn/deepadr
+
+总共 4 个实验将在 4 个GPU上运行
+
+实验列表:
+  1. GIN_KAGNN_fourier_NoHypergraph           (GPU 0) [KAN:✓ HG:✗]
+  2. GIN_KAGNN_fourier_Hypergraph             (GPU 1) [KAN:✓ HG:✓]
+  3. GCN_KAGNN_fourier_NoHypergraph           (GPU 2) [KAN:✓ HG:✗]
+  4. GCN_KAGNN_fourier_Hypergraph             (GPU 3) [KAN:✓ HG:✓]
+
+开始并行训练...
+================================================================================
+/home/bioinfo202200130116/bioinfo/codebasev5/graphnn/deepadr/train_functions_hypergraph.py:103: UserWarning: It is not recommended to directly access the internal storage format `data` of an 'InMemoryDataset'. If you are absolutely certain what you are doing, access the internal storage via `InMemoryDataset._data` instead to suppress this warning. Alternatively, you can access stacked individual attributes of every graph via `dataset.{attr_name}`.
+  expression_scaler.fit(used_dataset.data.expression[partition['train']])
+Traceback (most recent call last):
+  File "/home/bioinfo202200130116/bioinfo/codebasev5/graphnn/run_multi_gpu_comparison.py", line 108, in run_single_experiment_wrapper
+    run_exp_deepdds_hypergraph(queue, dataset, gpu_id, tp, exp_dir, partition)
+  File "/home/bioinfo202200130116/bioinfo/codebasev5/graphnn/deepadr/train_functions_hypergraph.py", line 103, in run_exp_deepdds_hypergraph
+    expression_scaler.fit(used_dataset.data.expression[partition['train']])
+  File "/home/bioinfo202200130116/.local/lib/python3.10/site-packages/torch_geometric/data/data.py", line 562, in __getattr__
+    return getattr(self._store, key)
+  File "/home/bioinfo202200130116/.local/lib/python3.10/site-packages/torch_geometric/data/storage.py", line 96, in __getattr__
+    raise AttributeError(
+AttributeError: 'GlobalStorage' object has no attribute 'expression'
+/home/bioinfo202200130116/bioinfo/codebasev5/graphnn/deepadr/train_functions_hypergraph.py:103: UserWarning: It is not recommended to directly access the internal storage format `data` of an 'InMemoryDataset'. If you are absolutely certain what you are doing, access the internal storage via `InMemoryDataset._data` instead to suppress this warning. Alternatively, you can access stacked individual attributes of every graph via `dataset.{attr_name}`.
+  expression_scaler.fit(used_dataset.data.expression[partition['train']])
+Traceback (most recent call last):
+  File "/home/bioinfo202200130116/bioinfo/codebasev5/graphnn/run_multi_gpu_comparison.py", line 108, in run_single_experiment_wrapper
+    run_exp_deepdds_hypergraph(queue, dataset, gpu_id, tp, exp_dir, partition)
+  File "/home/bioinfo202200130116/bioinfo/codebasev5/graphnn/deepadr/train_functions_hypergraph.py", line 103, in run_exp_deepdds_hypergraph
+    expression_scaler.fit(used_dataset.data.expression[partition['train']])
+  File "/home/bioinfo202200130116/.local/lib/python3.10/site-packages/torch_geometric/data/data.py", line 562, in __getattr__
+    return getattr(self._store, key)
+  File "/home/bioinfo202200130116/.local/lib/python3.10/site-packages/torch_geometric/data/storage.py", line 96, in __getattr__
+    raise AttributeError(
+AttributeError: 'GlobalStorage' object has no attribute 'expression'
+/home/bioinfo202200130116/bioinfo/codebasev5/graphnn/deepadr/train_functions_kagnn.py:153: UserWarning: It is not recommended to directly access the internal storage format `data` of an 'InMemoryDataset'. If you are absolutely certain what you are doing, access the internal storage via `InMemoryDataset._data` instead to suppress this warning. Alternatively, you can access stacked individual attributes of every graph via `dataset.{attr_name}`.
+  y_weights = compute_class_weights(used_dataset.data.y[partition['train']])
+/home/bioinfo202200130116/bioinfo/codebasev5/graphnn/deepadr/train_functions_kagnn.py:153: UserWarning: It is not recommended to directly access the internal storage format `data` of an 'InMemoryDataset'. If you are absolutely certain what you are doing, access the internal storage via `InMemoryDataset._data` instead to suppress this warning. Alternatively, you can access stacked individual attributes of every graph via `dataset.{attr_name}`.
+  y_weights = compute_class_weights(used_dataset.data.y[partition['train']])
+Traceback (most recent call last):
+  File "/home/bioinfo202200130116/bioinfo/codebasev5/graphnn/run_multi_gpu_comparison.py", line 111, in run_single_experiment_wrapper
+    run_exp_kagnn(queue, dataset, gpu_id, tp, exp_dir, partition)
+  File "/home/bioinfo202200130116/bioinfo/codebasev5/graphnn/deepadr/train_functions_kagnn.py", line 200, in run_exp_kagnn
+    h_e = batch.expression.type(fdtype)
+  File "/home/bioinfo202200130116/.local/lib/python3.10/site-packages/torch_geometric/data/data.py", line 562, in __getattr__
+    return getattr(self._store, key)
+  File "/home/bioinfo202200130116/.local/lib/python3.10/site-packages/torch_geometric/data/storage.py", line 96, in __getattr__
+    raise AttributeError(
+AttributeError: 'GlobalStorage' object has no attribute 'expression'
+Traceback (most recent call last):
+  File "/home/bioinfo202200130116/bioinfo/codebasev5/graphnn/run_multi_gpu_comparison.py", line 111, in run_single_experiment_wrapper
+    run_exp_kagnn(queue, dataset, gpu_id, tp, exp_dir, partition)
+  File "/home/bioinfo202200130116/bioinfo/codebasev5/graphnn/deepadr/train_functions_kagnn.py", line 200, in run_exp_kagnn
+    h_e = batch.expression.type(fdtype)
+  File "/home/bioinfo202200130116/.local/lib/python3.10/site-packages/torch_geometric/data/data.py", line 562, in __getattr__
+    return getattr(self._store, key)
+  File "/home/bioinfo202200130116/.local/lib/python3.10/site-packages/torch_geometric/data/storage.py", line 96, in __getattr__
+    raise AttributeError(
+AttributeError: 'GlobalStorage' object has no attribute 'expression'
+gpu: cuda:1
+使用超图模式: True
+使用重构损失: False
+
+[GPU 1] 实验 GIN_KAGNN_fourier_Hypergraph 失败: 'GlobalStorage' object has no attribute 'expression'
+gpu: cuda:3
+使用超图模式: True
+使用重构损失: False
+
+[GPU 3] 实验 GCN_KAGNN_fourier_Hypergraph 失败: 'GlobalStorage' object has no attribute 'expression'
+gpu: cuda:2
+
+============================================================
+模型配置:
+  GNN类型: gcn
+  使用KAN: True
+  KAN类型: fourier
+============================================================
+
+Initialized KAN-enhanced GNN (fourier): gcn, 5 layers, emb_dim=128
+Dropout(p=0.2, inplace=False) Dropout(p=0.2, inplace=False)
+
+=====Epoch 0/100=====
+Training...
+
+[GPU 2] 实验 GCN_KAGNN_fourier_NoHypergraph 失败: 'GlobalStorage' object has no attribute 'expression'
+
+所有实验都失败了!

@@ -1,0 +1,103 @@
+================================================================================
+多GPU并行对比实验
+================================================================================
+
+使用GPU: [0, 1, 2, 3]
+GNN类型: ['gin', 'gcn']
+KAN类型: fourier
+训练轮数: 100
+path_current_dir /home/bioinfo202200130116/bioinfo/codebasev5/graphnn/deepadr
+path_current_dir /home/bioinfo202200130116/bioinfo/codebasev5/graphnn/deepadr
+
+实验目录: /home/bioinfo202200130116/bioinfo/codebasev5/graphnn/data/processed/DrugComb_loewe_thresh_1/data_v1/experiments/multi_gpu_comparison_2026-05-04_22-22-18
+
+加载数据集...
+数据集大小: 160228
+/home/bioinfo202200130116/bioinfo/codebasev5/graphnn/run_multi_gpu_comparison.py:421: UserWarning: It is not recommended to directly access the internal storage format `data` of an 'InMemoryDataset'. If you are absolutely certain what you are doing, access the internal storage via `InMemoryDataset._data` instead to suppress this warning. Alternatively, you can access stacked individual attributes of every graph via `dataset.{attr_name}`.
+  dataset.data.y,
+fold_num: 0
+train data
+class: 0 norm count: 0.8518242417412862
+class: 1 norm count: 0.1481757582587138
+validation data
+class: 0 norm count: 0.8518605195413059
+class: 1 norm count: 0.14813948045869413
+test data
+class: 0 norm count: 0.8518379828995819
+class: 1 norm count: 0.14816201710041815
+
+-------------------------
+fold_num: 1
+train data
+class: 0 norm count: 0.8518242417412862
+class: 1 norm count: 0.1481757582587138
+validation data
+class: 0 norm count: 0.8518605195413059
+class: 1 norm count: 0.14813948045869413
+test data
+class: 0 norm count: 0.8518379828995819
+class: 1 norm count: 0.14816201710041815
+
+-------------------------
+fold_num: 2
+train data
+class: 0 norm count: 0.8518329100318126
+class: 1 norm count: 0.14816708996818737
+validation data
+class: 0 norm count: 0.8518605195413059
+class: 1 norm count: 0.14813948045869413
+test data
+class: 0 norm count: 0.8518067777569743
+class: 1 norm count: 0.14819322224302564
+
+-------------------------
+fold_num: 3
+train data
+class: 0 norm count: 0.8518255261606741
+class: 1 norm count: 0.14817447383932597
+validation data
+class: 0 norm count: 0.8518605195413059
+class: 1 norm count: 0.14813948045869413
+test data
+class: 0 norm count: 0.8518333593384303
+class: 1 norm count: 0.14816664066156968
+
+-------------------------
+fold_num: 4
+train data
+class: 0 norm count: 0.8518255261606741
+class: 1 norm count: 0.14817447383932597
+validation data
+class: 0 norm count: 0.8518605195413059
+class: 1 norm count: 0.14813948045869413
+test data
+class: 0 norm count: 0.8518333593384303
+class: 1 norm count: 0.14816664066156968
+
+-------------------------
+训练集: 115363
+验证集: 12819
+测试集: 32046
+path_current_dir /home/bioinfo202200130116/bioinfo/codebasev5/graphnn/deepadr
+path_current_dir /home/bioinfo202200130116/bioinfo/codebasev5/graphnn/deepadr
+path_current_dir /home/bioinfo202200130116/bioinfo/codebasev5/graphnn/deepadr
+path_current_dir /home/bioinfo202200130116/bioinfo/codebasev5/graphnn/deepadr
+path_current_dir /home/bioinfo202200130116/bioinfo/codebasev5/graphnn/deepadr
+path_current_dir /home/bioinfo202200130116/bioinfo/codebasev5/graphnn/deepadr
+path_current_dir /home/bioinfo202200130116/bioinfo/codebasev5/graphnn/deepadr
+path_current_dir /home/bioinfo202200130116/bioinfo/codebasev5/graphnn/deepadr
+path_current_dir /home/bioinfo202200130116/bioinfo/codebasev5/graphnn/deepadr
+path_current_dir /home/bioinfo202200130116/bioinfo/codebasev5/graphnn/deepadr
+path_current_dir /home/bioinfo202200130116/bioinfo/codebasev5/graphnn/deepadr
+path_current_dir /home/bioinfo202200130116/bioinfo/codebasev5/graphnn/deepadr
+
+总共 4 个实验将在 4 个GPU上运行
+
+实验列表:
+  1. GIN_Baseline_NoHypergraph                (GPU 0) [KAN:✗ HG:✗]
+  2. GIN_Baseline_Hypergraph                  (GPU 1) [KAN:✗ HG:✓]
+  3. GCN_Baseline_NoHypergraph                (GPU 2) [KAN:✗ HG:✗]
+  4. GCN_Baseline_Hypergraph                  (GPU 3) [KAN:✗ HG:✓]
+
+开始并行训练...
+================================================================================

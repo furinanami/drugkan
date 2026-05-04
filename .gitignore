@@ -1,0 +1,34 @@
+# 排除 graphnn 的 data/processing 目录
+graphnn/data
+KA-GNN/KA-GAT/data
+KA-GNN/KA-GNN/data
+
+# Python 相关
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+*.egg-info/
+dist/
+build/
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# 环境变量和配置
+.env
+.env.local
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# 系统文件
+.DS_Store
+Thumbs.db

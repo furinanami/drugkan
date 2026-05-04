@@ -1,0 +1,189 @@
+======================================================================
+GraphNN 数据集生成（优化版）
+======================================================================
+
+步骤 1: 加载预处理的DrugComb数据
+  ✓ 加载了 166608 条药物组合记录
+
+步骤 2: 提取唯一药物并转换为分子图
+  ✓ 找到 2148 个唯一药物
+
+  转换SMILES为分子图...
+  处理药物:   0%|          | 0/2148 [00:00<?, ?it/s][22:12:42] SMILES Parse Error: syntax error while parsing: C1=NC2=C(N1COCCO)NC(=NC2=O)N;
+[22:12:42] SMILES Parse Error: Failed parsing SMILES 'C1=NC2=C(N1COCCO)NC(=NC2=O)N;' for input: 'C1=NC2=C(N1COCCO)NC(=NC2=O)N;'
+[22:12:42] SMILES Parse Error: syntax error while parsing: C1=NC2=C(N1COC(CO)CO)NC(=NC2=O)N;
+[22:12:42] SMILES Parse Error: Failed parsing SMILES 'C1=NC2=C(N1COC(CO)CO)NC(=NC2=O)N;' for input: 'C1=NC2=C(N1COC(CO)CO)NC(=NC2=O)N;'
+[22:12:42] SMILES Parse Error: syntax error while parsing: C1=CC(=O)C=CC1=C2NC(=C(N2)C3=CC=NC=C3)C4=CC=C(C=C4)F;
+[22:12:42] SMILES Parse Error: Failed parsing SMILES 'C1=CC(=O)C=CC1=C2NC(=C(N2)C3=CC=NC=C3)C4=CC=C(C=C4)F;' for input: 'C1=CC(=O)C=CC1=C2NC(=C(N2)C3=CC=NC=C3)C4=CC=C(C=C4)F;'
+[22:12:42] SMILES Parse Error: syntax error while parsing: C1=CC=NC(=C1)NS(=O)(=O)C2=CC=C(C=C2)NN=C3C=CC(=O)C(=C3)C(=O)O;
+[22:12:42] SMILES Parse Error: Failed parsing SMILES 'C1=CC=NC(=C1)NS(=O)(=O)C2=CC=C(C=C2)NN=C3C=CC(=O)C(=C3)C(=O)O;' for input: 'C1=CC=NC(=C1)NS(=O)(=O)C2=CC=C(C=C2)NN=C3C=CC(=O)C(=C3)C(=O)O;'
+  处理药物:   6%|▌         | 130/2148 [00:00<00:01, 1299.02it/s][22:12:42] SMILES Parse Error: syntax error while parsing: CCOC1=CC=CC=C1NN=C2C(=NN(C2=O)C3=NC(=CS3)C4=CC=CC=C4)C;
+[22:12:42] SMILES Parse Error: Failed parsing SMILES 'CCOC1=CC=CC=C1NN=C2C(=NN(C2=O)C3=NC(=CS3)C4=CC=CC=C4)C;' for input: 'CCOC1=CC=CC=C1NN=C2C(=NN(C2=O)C3=NC(=CS3)C4=CC=CC=C4)C;'
+[22:12:42] SMILES Parse Error: syntax error while parsing: C1=CC=C2C(=C1)C=CC(=O)/C2=CNS(=O)(=O)C3=CC=CS3;
+[22:12:42] SMILES Parse Error: Failed parsing SMILES 'C1=CC=C2C(=C1)C=CC(=O)/C2=CNS(=O)(=O)C3=CC=CS3;' for input: 'C1=CC=C2C(=C1)C=CC(=O)/C2=CNS(=O)(=O)C3=CC=CS3;'
+  处理药物:  12%|█▏        | 260/2148 [00:00<00:01, 1248.46it/s][22:12:42] SMILES Parse Error: syntax error while parsing: CCCC1=NN(C2=C1NC(=NC2=O)C3=C(C=CC(=C3)S(=O)(=O)N4CCN(CC4)C)OCC)C;
+[22:12:42] SMILES Parse Error: Failed parsing SMILES 'CCCC1=NN(C2=C1NC(=NC2=O)C3=C(C=CC(=C3)S(=O)(=O)N4CCN(CC4)C)OCC)C;' for input: 'CCCC1=NN(C2=C1NC(=NC2=O)C3=C(C=CC(=C3)S(=O)(=O)N4CCN(CC4)C)OCC)C;'
+  处理药物:  18%|█▊        | 390/2148 [00:00<00:01, 1265.93it/s][22:12:42] SMILES Parse Error: syntax error while parsing: C1=C2C(=NC=NC2=O)NN1;
+[22:12:42] SMILES Parse Error: Failed parsing SMILES 'C1=C2C(=NC=NC2=O)NN1;' for input: 'C1=C2C(=NC=NC2=O)NN1;'
+  处理药物:  24%|██▍       | 522/2148 [00:00<00:01, 1286.00it/s]  处理药物:  30%|███       | 651/2148 [00:00<00:01, 1262.52it/s][22:12:42] SMILES Parse Error: syntax error while parsing: CC1=CC2=C(NC3=CC=CC=C3N=C2S1)N4CCN(CC4)C;
+[22:12:42] SMILES Parse Error: Failed parsing SMILES 'CC1=CC2=C(NC3=CC=CC=C3N=C2S1)N4CCN(CC4)C;' for input: 'CC1=CC2=C(NC3=CC=CC=C3N=C2S1)N4CCN(CC4)C;'
+[22:12:42] SMILES Parse Error: syntax error while parsing: CN1CCN(CC1)C2=C3C=CC=CC3=NC4=C(N2)C=C(C=C4)Cl;
+[22:12:42] SMILES Parse Error: Failed parsing SMILES 'CN1CCN(CC1)C2=C3C=CC=CC3=NC4=C(N2)C=C(C=C4)Cl;' for input: 'CN1CCN(CC1)C2=C3C=CC=CC3=NC4=C(N2)C=C(C=C4)Cl;'
+  处理药物:  36%|███▋      | 782/2148 [00:00<00:01, 1277.58it/s][22:12:42] SMILES Parse Error: syntax error while parsing: C1=CC(=C2NC(=C3C=CC=CC3=O)N(N2)C4=CC=C(C=C4)C(=O)O)C(=O)C=C1;
+[22:12:42] SMILES Parse Error: Failed parsing SMILES 'C1=CC(=C2NC(=C3C=CC=CC3=O)N(N2)C4=CC=C(C=C4)C(=O)O)C(=O)C=C1;' for input: 'C1=CC(=C2NC(=C3C=CC=CC3=O)N(N2)C4=CC=C(C=C4)C(=O)O)C(=O)C=C1;'
+[22:12:42] SMILES Parse Error: syntax error while parsing: CC(C)C1=CC(=C2NNC(=O)N2C3=CC4=C(C=C3)N(C=C4)C)C(=O)C=C1O;
+[22:12:42] SMILES Parse Error: Failed parsing SMILES 'CC(C)C1=CC(=C2NNC(=O)N2C3=CC4=C(C=C3)N(C=C4)C)C(=O)C=C1O;' for input: 'CC(C)C1=CC(=C2NNC(=O)N2C3=CC4=C(C=C3)N(C=C4)C)C(=O)C=C1O;'
+[22:12:42] SMILES Parse Error: syntax error while parsing: C1=CC(=CC=C1CCC2=CNC3=C2C(=O)N=C(N3)N)C(=O)NC(CCC(=O)O)C(=O)O;
+[22:12:42] SMILES Parse Error: Failed parsing SMILES 'C1=CC(=CC=C1CCC2=CNC3=C2C(=O)N=C(N3)N)C(=O)NC(CCC(=O)O)C(=O)O;' for input: 'C1=CC(=CC=C1CCC2=CNC3=C2C(=O)N=C(N3)N)C(=O)NC(CCC(=O)O)C(=O)O;'
+  处理药物:  42%|████▏     | 910/2148 [00:00<00:00, 1278.26it/s][22:12:43] SMILES Parse Error: syntax error while parsing: CN1C=NC(=C2C1=NC=N2)N;
+[22:12:43] SMILES Parse Error: Failed parsing SMILES 'CN1C=NC(=C2C1=NC=N2)N;' for input: 'CN1C=NC(=C2C1=NC=N2)N;'
+[22:12:43] SMILES Parse Error: syntax error while parsing: C1=CC2=C(C(=C3C4=C(C=C(C=C4)Br)NC3=O)N=C2C=C1)NO;
+[22:12:43] SMILES Parse Error: Failed parsing SMILES 'C1=CC2=C(C(=C3C4=C(C=C(C=C4)Br)NC3=O)N=C2C=C1)NO;' for input: 'C1=CC2=C(C(=C3C4=C(C=C(C=C4)Br)NC3=O)N=C2C=C1)NO;'
+[22:12:43] SMILES Parse Error: syntax error while parsing: CN(C)CC1=CC(=CC=C1)NC(=C2C3=C(C=C(C=C3)C(=O)N)NC2=O)C4=CC=CC=C4;
+[22:12:43] SMILES Parse Error: Failed parsing SMILES 'CN(C)CC1=CC(=CC=C1)NC(=C2C3=C(C=C(C=C3)C(=O)N)NC2=O)C4=CC=CC=C4;' for input: 'CN(C)CC1=CC(=CC=C1)NC(=C2C3=C(C=C(C=C3)C(=O)N)NC2=O)C4=CC=CC=C4;'
+[22:12:43] SMILES Parse Error: syntax error while parsing: CN(C)CC1=CC(=CC=C1)NC(=C2C3=C(C=C(C=C3)C(=O)N(C)C)NC2=O)C4=CC=CC=C4;
+[22:12:43] SMILES Parse Error: Failed parsing SMILES 'CN(C)CC1=CC(=CC=C1)NC(=C2C3=C(C=C(C=C3)C(=O)N(C)C)NC2=O)C4=CC=CC=C4;' for input: 'CN(C)CC1=CC(=CC=C1)NC(=C2C3=C(C=C(C=C3)C(=O)N(C)C)NC2=O)C4=CC=CC=C4;'
+  处理药物:  48%|████▊     | 1039/2148 [00:00<00:00, 1279.52it/s][22:12:43] SMILES Parse Error: syntax error while parsing: CN1C(CC2=CC(=NNC(=O)N)C(=O)C=C21)S(=O)(=O)[O-].[Na+];
+[22:12:43] SMILES Parse Error: Failed parsing SMILES 'CN1C(CC2=CC(=NNC(=O)N)C(=O)C=C21)S(=O)(=O)[O-].[Na+];' for input: 'CN1C(CC2=CC(=NNC(=O)N)C(=O)C=C21)S(=O)(=O)[O-].[Na+];'
+[22:12:43] SMILES Parse Error: syntax error while parsing: C1CC(OC1CO)N2C=NC3=C2NC=NC3=O;
+[22:12:43] SMILES Parse Error: Failed parsing SMILES 'C1CC(OC1CO)N2C=NC3=C2NC=NC3=O;' for input: 'C1CC(OC1CO)N2C=NC3=C2NC=NC3=O;'
+[22:12:43] SMILES Parse Error: syntax error while parsing: CN1CCN(CC1)C2=CC3=C(C=C2)NC(=C4C(=C5C(=NC4=O)C=CC=C5F)N)N3;
+[22:12:43] SMILES Parse Error: Failed parsing SMILES 'CN1CCN(CC1)C2=CC3=C(C=C2)NC(=C4C(=C5C(=NC4=O)C=CC=C5F)N)N3;' for input: 'CN1CCN(CC1)C2=CC3=C(C=C2)NC(=C4C(=C5C(=NC4=O)C=CC=C5F)N)N3;'
+[22:12:43] SMILES Parse Error: syntax error while parsing: CC1=C(C=C(C=C1)N2C(=O)C(=C(N2)C)NN=C3C=CC=C(C3=O)C4=CC(=CC=C4)C(=O)O)C;
+[22:12:43] SMILES Parse Error: Failed parsing SMILES 'CC1=C(C=C(C=C1)N2C(=O)C(=C(N2)C)NN=C3C=CC=C(C3=O)C4=CC(=CC=C4)C(=O)O)C;' for input: 'CC1=C(C=C(C=C1)N2C(=O)C(=C(N2)C)NN=C3C=CC=C(C3=O)C4=CC(=CC=C4)C(=O)O)C;'
+  处理药物:  54%|█████▍    | 1168/2148 [00:00<00:00, 1273.10it/s][22:12:43] SMILES Parse Error: syntax error while parsing: C1=CC=C2C(=C1)C(=C3C(=O)C4=CC=CC=C4N3)C(=O)N2;
+[22:12:43] SMILES Parse Error: Failed parsing SMILES 'C1=CC=C2C(=C1)C(=C3C(=O)C4=CC=CC=C4N3)C(=O)N2;' for input: 'C1=CC=C2C(=C1)C(=C3C(=O)C4=CC=CC=C4N3)C(=O)N2;'
+  处理药物:  60%|██████    | 1296/2148 [00:01<00:00, 1237.71it/s][22:12:43] SMILES Parse Error: syntax error while parsing: CC1=C(C=C(C=C1)C(=O)NC2=CC=CC(=C2)C(F)(F)F)NC3=NC(=NC4=C3C=NN4C)C5=CN=CC=C5;
+[22:12:43] SMILES Parse Error: Failed parsing SMILES 'CC1=C(C=C(C=C1)C(=O)NC2=CC=CC(=C2)C(F)(F)F)NC3=NC(=NC4=C3C=NN4C)C5=CN=CC=C5;' for input: 'CC1=C(C=C(C=C1)C(=O)NC2=CC=CC(=C2)C(F)(F)F)NC3=NC(=NC4=C3C=NN4C)C5=CN=CC=C5;'
+[22:12:43] SMILES Parse Error: syntax error while parsing: COC1=CC=CC2=CC(=C3C4=C(N=CNN4C(=N3)C5CCC(CC5)C(=O)O)N)N=C21;
+[22:12:43] SMILES Parse Error: Failed parsing SMILES 'COC1=CC=CC2=CC(=C3C4=C(N=CNN4C(=N3)C5CCC(CC5)C(=O)O)N)N=C21;' for input: 'COC1=CC=CC2=CC(=C3C4=C(N=CNN4C(=N3)C5CCC(CC5)C(=O)O)N)N=C21;'
+[22:12:43] SMILES Parse Error: syntax error while parsing: C=CCC1=CC=CC(=CNNC(=O)CN2CCN(CC2)CC3=CC=CC=C3)C1=O;
+[22:12:43] SMILES Parse Error: Failed parsing SMILES 'C=CCC1=CC=CC(=CNNC(=O)CN2CCN(CC2)CC3=CC=CC=C3)C1=O;' for input: 'C=CCC1=CC=CC(=CNNC(=O)CN2CCN(CC2)CC3=CC=CC=C3)C1=O;'
+[22:12:43] SMILES Parse Error: syntax error while parsing: CN1C=C(C=N1)C2=NC3=C4C2=CNNC(=O)C4=CC(=C3)NC(=O)C(C5CCCCC5)N;
+[22:12:43] SMILES Parse Error: Failed parsing SMILES 'CN1C=C(C=N1)C2=NC3=C4C2=CNNC(=O)C4=CC(=C3)NC(=O)C(C5CCCCC5)N;' for input: 'CN1C=C(C=N1)C2=NC3=C4C2=CNNC(=O)C4=CC(=C3)NC(=O)C(C5CCCCC5)N;'
+[22:12:43] SMILES Parse Error: syntax error while parsing: CC(C)N1C2=C(C(=C3C=C4C=C(C=CC4=N3)O)N1)C(=NC=N2)N;
+[22:12:43] SMILES Parse Error: Failed parsing SMILES 'CC(C)N1C2=C(C(=C3C=C4C=C(C=CC4=N3)O)N1)C(=NC=N2)N;' for input: 'CC(C)N1C2=C(C(=C3C=C4C=C(C=CC4=N3)O)N1)C(=NC=N2)N;'
+[22:12:43] SMILES Parse Error: syntax error while parsing: CCCC1=NN(C2=C1NC(=NC2=O)C3=C(C=CC(=C3)S(=O)(=O)N4CCN(CC4)C)OCC)C.C(C(=O)O)C(CC(=O)O)(C(=O)O)O;
+[22:12:43] SMILES Parse Error: Failed parsing SMILES 'CCCC1=NN(C2=C1NC(=NC2=O)C3=C(C=CC(=C3)S(=O)(=O)N4CCN(CC4)C)OCC)C.C(C(=O)O)C(CC(=O)O)(C(=O)O)O;' for input: 'CCCC1=NN(C2=C1NC(=NC2=O)C3=C(C=CC(=C3)S(=O)(=O)N4CCN(CC4)C)OCC)C.C(C(=O)O)C(CC(=O)O)(C(=O)O)O;'
+  处理药物:  66%|██████▋   | 1424/2148 [00:01<00:00, 1250.15it/s][22:12:43] SMILES Parse Error: syntax error while parsing: C1CSCC2=C1NC(=NC2=O)C3=CC=C(C=C3)C(F)(F)F;
+[22:12:43] SMILES Parse Error: Failed parsing SMILES 'C1CSCC2=C1NC(=NC2=O)C3=CC=C(C=C3)C(F)(F)F;' for input: 'C1CSCC2=C1NC(=NC2=O)C3=CC=C(C=C3)C(F)(F)F;'
+[22:12:43] SMILES Parse Error: syntax error while parsing: Antibody
+[22:12:43] SMILES Parse Error: Failed parsing SMILES 'Antibody' for input: 'Antibody'
+[22:12:43] SMILES Parse Error: syntax error while parsing: CN(C)CC#Cc1ccc(OCCCc2sc(nc2C(=O)O)N3CCc4cccc(C(=O)Nc5nc6ccccc6s5)c4C3)cc1;CN(C)CC#Cc1ccc(cc1)OCCCc2c(nc(s2)N3CCc4cccc(c4C3)C(=O)Nc5nc6ccccc6s5)C(=O)O
+[22:12:43] SMILES Parse Error: Failed parsing SMILES 'CN(C)CC#Cc1ccc(OCCCc2sc(nc2C(=O)O)N3CCc4cccc(C(=O)Nc5nc6ccccc6s5)c4C3)cc1;CN(C)CC#Cc1ccc(cc1)OCCCc2c(nc(s2)N3CCc4cccc(c4C3)C(=O)Nc5nc6ccccc6s5)C(=O)O' for input: 'CN(C)CC#Cc1ccc(OCCCc2sc(nc2C(=O)O)N3CCc4cccc(C(=O)Nc5nc6ccccc6s5)c4C3)cc1;CN(C)CC#Cc1ccc(cc1)OCCCc2c(nc(s2)N3CCc4cccc(c4C3)C(=O)Nc5nc6ccccc6s5)C(=O)O'
+  处理药物:  72%|███████▏  | 1550/2148 [00:01<00:00, 1252.07it/s][22:12:43] SMILES Parse Error: syntax error while parsing: CN1CCN(CC1)CC(=O)N(C)C2=CC=C(C=C2)N/C(=C3/C4=C(C=C(C=C4)C(=O)OC)NC3=O)/C5=CC=CC=C5;
+[22:12:43] SMILES Parse Error: Failed parsing SMILES 'CN1CCN(CC1)CC(=O)N(C)C2=CC=C(C=C2)N/C(=C3/C4=C(C=C(C=C4)C(=O)OC)NC3=O)/C5=CC=CC=C5;' for input: 'CN1CCN(CC1)CC(=O)N(C)C2=CC=C(C=C2)N/C(=C3/C4=C(C=C(C=C4)C(=O)OC)NC3=O)/C5=CC=CC=C5;'
+[22:12:43] SMILES Parse Error: syntax error while parsing: CC1=C(/C(=C/2C=CC(=O)C=C2O)/NN1)C3=CC=C(C=C3)OC;
+[22:12:43] SMILES Parse Error: Failed parsing SMILES 'CC1=C(/C(=C/2C=CC(=O)C=C2O)/NN1)C3=CC=C(C=C3)OC;' for input: 'CC1=C(/C(=C/2C=CC(=O)C=C2O)/NN1)C3=CC=C(C=C3)OC;'
+[22:12:43] SMILES Parse Error: syntax error while parsing: CN1C2=CC=CC=C2C(=C3C1=NC(=O)N(C3=O)C)NCCCN(C)C;
+[22:12:43] SMILES Parse Error: Failed parsing SMILES 'CN1C2=CC=CC=C2C(=C3C1=NC(=O)N(C3=O)C)NCCCN(C)C;' for input: 'CN1C2=CC=CC=C2C(=C3C1=NC(=O)N(C3=O)C)NCCCN(C)C;'
+  处理药物:  78%|███████▊  | 1676/2148 [00:01<00:00, 1215.82it/s][22:12:43] SMILES Parse Error: syntax error while parsing: CCC1=C/C(=C/2C(=C(NN2)C)C3=CC4=C(C=C3)OCCO4)/C(=O)C=C1O;
+[22:12:43] SMILES Parse Error: Failed parsing SMILES 'CCC1=C/C(=C/2C(=C(NN2)C)C3=CC4=C(C=C3)OCCO4)/C(=O)C=C1O;' for input: 'CCC1=C/C(=C/2C(=C(NN2)C)C3=CC4=C(C=C3)OCCO4)/C(=O)C=C1O;'
+  处理药物:  84%|████████▎ | 1798/2148 [00:01<00:00, 1208.98it/s][22:12:43] SMILES Parse Error: syntax error while parsing: CC(C1=CC(=CC(=C1)C(F)(F)F)C(F)(F)F)OC2C(N(CCO2)CC3=NC(=O)NN3)C4=CC=C(C=C4)F;
+[22:12:43] SMILES Parse Error: Failed parsing SMILES 'CC(C1=CC(=CC(=C1)C(F)(F)F)C(F)(F)F)OC2C(N(CCO2)CC3=NC(=O)NN3)C4=CC=C(C=C4)F;' for input: 'CC(C1=CC(=CC(=C1)C(F)(F)F)C(F)(F)F)OC2C(N(CCO2)CC3=NC(=O)NN3)C4=CC=C(C=C4)F;'
+  处理药物:  89%|████████▉ | 1920/2148 [00:01<00:00, 1209.20it/s]  处理药物:  95%|█████████▌| 2049/2148 [00:01<00:00, 1231.51it/s][22:12:43] SMILES Parse Error: syntax error while parsing: CCCS(=O)(=O)Nc1ccc(F)c(C(=O)c2c[nH]c3ncc(cc23)c4cccc(c4)C(=O)N)c1F;CCCS(=O)(=O)Nc1ccc(c(c1F)C(=O)c2c[nH]c3c2cc(cn3)c4cccc(c4)C(=O)N)F
+[22:12:43] SMILES Parse Error: Failed parsing SMILES 'CCCS(=O)(=O)Nc1ccc(F)c(C(=O)c2c[nH]c3ncc(cc23)c4cccc(c4)C(=O)N)c1F;CCCS(=O)(=O)Nc1ccc(c(c1F)C(=O)c2c[nH]c3c2cc(cn3)c4cccc(c4)C(=O)N)F' for input: 'CCCS(=O)(=O)Nc1ccc(F)c(C(=O)c2c[nH]c3ncc(cc23)c4cccc(c4)C(=O)N)c1F;CCCS(=O)(=O)Nc1ccc(c(c1F)C(=O)c2c[nH]c3c2cc(cn3)c4cccc(c4)C(=O)N)F'
+[22:12:44] SMILES Parse Error: syntax error while parsing: C[C@@]1(O)C[C@@H](C1)c2nc(c3ccc4ccc(nc4c3)c5ccccc5)c6c(N)nccn26;C[C@]1(C[C@@H](C1)c2n3c(c(ncc3)N)c(n2)c4cc5nc(ccc5cc4)c6ccccc6)O
+[22:12:44] SMILES Parse Error: Failed parsing SMILES 'C[C@@]1(O)C[C@@H](C1)c2nc(c3ccc4ccc(nc4c3)c5ccccc5)c6c(N)nccn26;C[C@]1(C[C@@H](C1)c2n3c(c(ncc3)N)c(n2)c4cc5nc(ccc5cc4)c6ccccc6)O' for input: 'C[C@@]1(O)C[C@@H](C1)c2nc(c3ccc4ccc(nc4c3)c5ccccc5)c6c(N)nccn26;C[C@]1(C[C@@H](C1)c2n3c(c(ncc3)N)c(n2)c4cc5nc(ccc5cc4)c6ccccc6)O'
+[22:12:44] SMILES Parse Error: syntax error while parsing: CS(=O)(=O)c1ccc(Nc2cncc(n2)c3cnc4ccccn34)cc1;CS(=O)(=O)c1ccc(cc1)Nc2cncc(n2)c3cnc4n3cccc4
+[22:12:44] SMILES Parse Error: Failed parsing SMILES 'CS(=O)(=O)c1ccc(Nc2cncc(n2)c3cnc4ccccn34)cc1;CS(=O)(=O)c1ccc(cc1)Nc2cncc(n2)c3cnc4n3cccc4' for input: 'CS(=O)(=O)c1ccc(Nc2cncc(n2)c3cnc4ccccn34)cc1;CS(=O)(=O)c1ccc(cc1)Nc2cncc(n2)c3cnc4n3cccc4'
+  处理药物: 100%|██████████| 2148/2148 [00:01<00:00, 1242.41it/s]
+  ✓ 成功转换 2109 个药物
+  ⚠ 失败 39 个药物
+
+步骤 3: 过滤数据并按细胞系组织
+  ✓ 过滤后剩余 160228 条记录
+  ✓ 数据分布在 169 个细胞系
+
+步骤 4: 加载基因表达数据
+  ✓ 加载了 946 个基因, 1684 个细胞系
+  ✓ 计算了默认基因表达向量
+
+步骤 5: 按细胞系批量创建数据集
+  处理细胞系:   0%|          | 0/169 [00:00<?, ?it/s]  处理细胞系:   1%|          | 2/169 [00:00<00:15, 10.81it/s]  处理细胞系:   2%|▏         | 4/169 [00:00<00:21,  7.61it/s]  处理细胞系:   4%|▎         | 6/169 [00:00<00:19,  8.18it/s]  处理细胞系:   4%|▍         | 7/169 [00:00<00:21,  7.49it/s]  处理细胞系:   5%|▌         | 9/169 [00:01<00:19,  8.36it/s]  处理细胞系:   7%|▋         | 11/169 [00:01<00:15, 10.25it/s]  处理细胞系:   8%|▊         | 13/169 [00:01<00:16,  9.26it/s]  处理细胞系:  11%|█         | 18/169 [00:01<00:09, 15.63it/s]  处理细胞系:  12%|█▏        | 20/169 [00:01<00:09, 15.46it/s]  处理细胞系:  15%|█▍        | 25/169 [00:01<00:07, 19.34it/s]  处理细胞系:  17%|█▋        | 28/169 [00:02<00:12, 11.34it/s]  处理细胞系:  18%|█▊        | 30/169 [00:02<00:15,  8.72it/s]  处理细胞系:  20%|██        | 34/169 [00:03<00:11, 11.68it/s]  处理细胞系:  23%|██▎       | 39/169 [00:03<00:09, 14.05it/s]  处理细胞系:  24%|██▍       | 41/169 [00:03<00:09, 13.92it/s]  处理细胞系:  31%|███▏      | 53/169 [00:03<00:04, 27.62it/s]  处理细胞系:  34%|███▎      | 57/169 [00:04<00:06, 18.12it/s]  处理细胞系:  36%|███▌      | 60/169 [00:04<00:08, 13.60it/s]  处理细胞系:  37%|███▋      | 63/169 [00:04<00:07, 14.14it/s]  处理细胞系:  38%|███▊      | 65/169 [00:04<00:07, 14.80it/s]  处理细胞系:  40%|███▉      | 67/169 [00:05<00:08, 12.19it/s]  处理细胞系:  41%|████      | 69/169 [00:05<00:08, 12.26it/s]  处理细胞系:  42%|████▏     | 71/169 [00:05<00:07, 12.74it/s]  处理细胞系:  44%|████▍     | 74/169 [00:05<00:06, 15.47it/s]  处理细胞系:  45%|████▍     | 76/169 [00:05<00:06, 14.39it/s]  处理细胞系:  46%|████▌     | 78/169 [00:06<00:08, 10.33it/s]  处理细胞系:  47%|████▋     | 80/169 [00:06<00:07, 11.29it/s]  处理细胞系:  49%|████▊     | 82/169 [00:06<00:06, 12.54it/s]  处理细胞系:  50%|████▉     | 84/169 [00:06<00:06, 13.53it/s]  处理细胞系:  52%|█████▏    | 88/169 [00:06<00:04, 17.36it/s]  处理细胞系:  54%|█████▍    | 92/169 [00:06<00:03, 19.62it/s]  处理细胞系:  56%|█████▌    | 95/169 [00:07<00:06, 10.62it/s]  处理细胞系:  57%|█████▋    | 97/169 [00:07<00:06, 11.38it/s]  处理细胞系:  63%|██████▎   | 107/169 [00:07<00:02, 24.28it/s]  处理细胞系:  66%|██████▌   | 111/169 [00:07<00:02, 26.70it/s]  处理细胞系:  68%|██████▊   | 115/169 [00:07<00:02, 21.58it/s]  处理细胞系:  70%|███████   | 119/169 [00:08<00:02, 21.03it/s]  处理细胞系:  72%|███████▏  | 122/169 [00:08<00:02, 21.85it/s]  处理细胞系:  74%|███████▍  | 125/169 [00:08<00:02, 14.79it/s]  处理细胞系:  76%|███████▌  | 128/169 [00:08<00:02, 16.58it/s]  处理细胞系:  78%|███████▊  | 131/169 [00:09<00:02, 12.96it/s]  处理细胞系:  79%|███████▉  | 134/169 [00:09<00:02, 13.38it/s]  处理细胞系:  80%|████████  | 136/169 [00:09<00:02, 11.80it/s]  处理细胞系:  82%|████████▏ | 138/169 [00:09<00:03,  9.20it/s]  处理细胞系:  83%|████████▎ | 140/169 [00:10<00:05,  5.22it/s]  处理细胞系:  83%|████████▎ | 141/169 [00:10<00:05,  5.48it/s]  处理细胞系:  84%|████████▍ | 142/169 [00:11<00:04,  5.52it/s]  处理细胞系:  85%|████████▌ | 144/169 [00:11<00:03,  7.01it/s]  处理细胞系:  87%|████████▋ | 147/169 [00:11<00:02,  8.73it/s]  处理细胞系:  88%|████████▊ | 149/169 [00:11<00:02,  9.57it/s]  处理细胞系:  92%|█████████▏| 155/169 [00:11<00:00, 16.26it/s]  处理细胞系:  95%|█████████▍| 160/169 [00:12<00:00, 19.54it/s]  处理细胞系:  96%|█████████▋| 163/169 [00:12<00:00, 12.27it/s]  处理细胞系:  98%|█████████▊| 166/169 [00:12<00:00, 14.47it/s]  处理细胞系: 100%|██████████| 169/169 [00:12<00:00, 14.75it/s]  处理细胞系: 100%|██████████| 169/169 [00:12<00:00, 13.17it/s]
+  ✓ 创建了 160228 个训练样本
+
+步骤 6: 保存数据集
+  ✓ 保存药物对数据
+  ✓ 保存标签
+  ✓ 保存基因表达
+  ✓ 保存药物ID
+  ✓ 保存细胞系ID
+  ✓ 保存PyG数据集格式文件到 data/processed/DrugComb_loewe_thresh_1/data_v1/raw/
+
+步骤 7: 创建数据分区（5折交叉验证）
+fold_num: 0
+train data
+class: 0 norm count: 0.8518242417412862
+class: 1 norm count: 0.1481757582587138
+validation data
+class: 0 norm count: 0.8518605195413059
+class: 1 norm count: 0.14813948045869413
+test data
+class: 0 norm count: 0.8518379828995819
+class: 1 norm count: 0.14816201710041815
+
+-------------------------
+fold_num: 1
+train data
+class: 0 norm count: 0.8518242417412862
+class: 1 norm count: 0.1481757582587138
+validation data
+class: 0 norm count: 0.8518605195413059
+class: 1 norm count: 0.14813948045869413
+test data
+class: 0 norm count: 0.8518379828995819
+class: 1 norm count: 0.14816201710041815
+
+-------------------------
+fold_num: 2
+train data
+class: 0 norm count: 0.8518329100318126
+class: 1 norm count: 0.14816708996818737
+validation data
+class: 0 norm count: 0.8518605195413059
+class: 1 norm count: 0.14813948045869413
+test data
+class: 0 norm count: 0.8518067777569743
+class: 1 norm count: 0.14819322224302564
+
+-------------------------
+fold_num: 3
+train data
+class: 0 norm count: 0.8518255261606741
+class: 1 norm count: 0.14817447383932597
+validation data
+class: 0 norm count: 0.8518605195413059
+class: 1 norm count: 0.14813948045869413
+test data
+class: 0 norm count: 0.8518333593384303
+class: 1 norm count: 0.14816664066156968
+
+-------------------------
+fold_num: 4
+train data
+class: 0 norm count: 0.8518255261606741
+class: 1 norm count: 0.14817447383932597
+validation data
+class: 0 norm count: 0.8518605195413059
+class: 1 norm count: 0.14813948045869413
+test data
+class: 0 norm count: 0.8518333593384303
+class: 1 norm count: 0.14816664066156968
+
+-------------------------
+  ✓ 保存数据分区
+
+步骤 8: 数据集统计
+  - 总样本数: 160228
+  - 正样本: 23741 (14.8%)
+  - 负样本: 136487 (85.2%)
+  - 特征维度: 946
+  - 唯一细胞系: 169
+  - 唯一药物: 2109
+
+======================================================================
+✅ 数据集生成完成!
+======================================================================
+
+下一步: 运行 python3 train_model.py 训练模型
