@@ -23,6 +23,7 @@ sys.path.insert(0, '/home/bioinfo202200130116/bioinfo/codebasev5/graphnn')
 from deepadr.dataset import MoleculeDataset, get_stratified_partitions
 from deepadr.utilities import create_directory
 from deepadr.train_functions_kagnn import run_exp_kagnn
+from deepadr.cold_split import get_split_by_scenario
 
 
 def parse_args():
@@ -49,11 +50,16 @@ def parse_args():
     parser.add_argument('--kan_type', type=str, default='fourier',
                        choices=['fourier', 'bspline'],
                        help='KAN type (default: fourier)')
+    parser.add_argument('--scenario', type=str, default='random',
+                       choices=['random', 'cold_drug', 'cold_cell', 'all'],
+                       help='Data split scenario: random, cold_drug, cold_cell, or all (default: random)')
+    parser.add_argument('--early_stopping', type=int, default=10,
+                       help='Early stopping patience (default: 10, set to 0 to disable)')
 
     return parser.parse_args()
 
 
-def create_training_params(args, gnn_type, use_kan, use_hypergraph):
+def create_training_params(args, gnn_type, use_kan, use_hypergraph, scenario='random'):
     """创建训练参数"""
     tp = {
         "batch_size": args.batch_size,
@@ -85,7 +91,12 @@ def create_training_params(args, gnn_type, use_kan, use_hypergraph):
 
         "expression_input_size": 946,
         "exp_H1": 8192,
-        "exp_H2": 4096
+        "exp_H2": 4096,
+
+        # 新增：场景和早停参数
+        "scenario": scenario,
+        "early_stopping_patience": args.early_stopping,
+        "enable_realtime_viz": True,  # 启用实时可视化
     }
     return tp
 
@@ -416,22 +427,19 @@ def main():
     dataset = MoleculeDataset(root=targetdata_dir, dataset='tdcSynergy')
     print(f"数据集大小: {len(dataset)}")
 
-    # 创建数据分区
-    fold_partitions = get_stratified_partitions(
-        dataset.data.y,
-        num_folds=5,
-        valid_set_portion=0.1,
-        random_state=42
-    )
-    partition = fold_partitions[0]
-
-    print(f"训练集: {len(partition['train'])}")
-    print(f"验证集: {len(partition['validation'])}")
-    print(f"测试集: {len(partition['test'])}")
-
     # 准备所有实验
     experiments = []
     gpu_idx = 0
+
+    # 解析场景列表
+    scenario_list = []
+    if hasattr(args, 'scenario'):
+        if args.scenario == 'all':
+            scenario_list = ['random', 'cold_drug', 'cold_cell']
+        else:
+            scenario_list = [args.scenario]
+    else:
+        scenario_list = ['random']
 
     # 解析use_kan和use_hypergraph参数
     use_kan_options = []
@@ -450,41 +458,65 @@ def main():
     else:  # 'both'
         use_hypergraph_options = [False, True]
 
-    # 为每种GNN类型创建实验
-    for gnn_type in gnn_types:
-        for use_kan in use_kan_options:
-            for use_hypergraph in use_hypergraph_options:
-                # 创建训练参数
-                tp = create_training_params(args, gnn_type, use_kan, use_hypergraph)
+    # 为每个场景、每种GNN类型创建实验
+    for scenario in scenario_list:
+        # 加载该场景的数据分区
+        partition_file = os.path.join(targetdata_dir, "partitions", f"partition_{scenario}.pkl")
 
-                # 生成实验名称
-                exp_name_parts = [gnn_type.upper()]
-                if use_kan:
-                    exp_name_parts.append(f"KAGNN_{args.kan_type}")
-                else:
-                    exp_name_parts.append("Baseline")
-                if use_hypergraph:
-                    exp_name_parts.append("Hypergraph")
-                else:
-                    exp_name_parts.append("NoHypergraph")
+        if os.path.exists(partition_file):
+            print(f"\n加载 {scenario} 场景分区文件...")
+            import pickle
+            with open(partition_file, 'rb') as f:
+                partition = pickle.load(f)
+        else:
+            print(f"\n分区文件不存在，使用默认 random 分区...")
+            fold_partitions = get_stratified_partitions(
+                dataset.data.y,
+                num_folds=5,
+                valid_set_portion=0.1,
+                random_state=42
+            )
+            partition = fold_partitions[0]
 
-                exp_name = "_".join(exp_name_parts)
+        print(f"  训练集: {len(partition['train'])}")
+        print(f"  验证集: {len(partition.get('validation', partition.get('valid', [])))}")
+        print(f"  测试集: {len(partition['test'])}")
 
-                # 创建实验目录
-                exp_dir = create_directory(os.path.join(main_exp_dir, exp_name))
-                create_directory(os.path.join(exp_dir, "predictions"))
-                create_directory(os.path.join(exp_dir, "modelstates"))
+        for gnn_type in gnn_types:
+            for use_kan in use_kan_options:
+                for use_hypergraph in use_hypergraph_options:
+                    # 创建训练参数
+                    tp = create_training_params(args, gnn_type, use_kan, use_hypergraph, scenario)
 
-                # 添加到实验列表
-                experiments.append((
-                    targetdata_dir,
-                    partition,
-                    tp,
-                    exp_name,
-                    exp_dir,
-                    gpu_list[gpu_idx % len(gpu_list)]
-                ))
-                gpu_idx += 1
+                    # 生成实验名称
+                    exp_name_parts = [gnn_type.upper()]
+                    if use_kan:
+                        exp_name_parts.append(f"KAGNN_{args.kan_type}")
+                    else:
+                        exp_name_parts.append("Baseline")
+                    if use_hypergraph:
+                        exp_name_parts.append("Hypergraph")
+                    else:
+                        exp_name_parts.append("NoHypergraph")
+                    exp_name_parts.append(scenario)
+
+                    exp_name = "_".join(exp_name_parts)
+
+                    # 创建实验目录
+                    exp_dir = create_directory(os.path.join(main_exp_dir, exp_name))
+                    create_directory(os.path.join(exp_dir, "predictions"))
+                    create_directory(os.path.join(exp_dir, "modelstates"))
+
+                    # 添加到实验列表
+                    experiments.append((
+                        targetdata_dir,
+                        partition,
+                        tp,
+                        exp_name,
+                        exp_dir,
+                        gpu_list[gpu_idx % len(gpu_list)]
+                    ))
+                    gpu_idx += 1
 
     print(f"\n总共 {len(experiments)} 个实验将在 {len(gpu_list)} 个GPU上运行")
     print("\n实验列表:")

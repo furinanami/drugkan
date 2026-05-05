@@ -2,88 +2,22 @@
 多GPU并行对比实验
 ================================================================================
 
-使用GPU: [0, 1, 2, 3]
-GNN类型: ['gin', 'gcn']
+使用GPU: [0, 1, 2, 3, 4, 5]
+GNN类型: ['gcn']
 KAN类型: fourier
 训练轮数: 100
 path_current_dir /home/bioinfo202200130116/bioinfo/codebasev5/graphnn/deepadr
 path_current_dir /home/bioinfo202200130116/bioinfo/codebasev5/graphnn/deepadr
 
-实验目录: /home/bioinfo202200130116/bioinfo/codebasev5/graphnn/data/processed/DrugComb_loewe_thresh_1/data_v1/experiments/multi_gpu_comparison_2026-05-04_22-22-18
+实验目录: /home/bioinfo202200130116/bioinfo/codebasev5/graphnn/data/processed/DrugComb_loewe_thresh_1/data_v1/experiments/multi_gpu_comparison_2026-05-05_05-50-22
 
 加载数据集...
 数据集大小: 160228
-/home/bioinfo202200130116/bioinfo/codebasev5/graphnn/run_multi_gpu_comparison.py:421: UserWarning: It is not recommended to directly access the internal storage format `data` of an 'InMemoryDataset'. If you are absolutely certain what you are doing, access the internal storage via `InMemoryDataset._data` instead to suppress this warning. Alternatively, you can access stacked individual attributes of every graph via `dataset.{attr_name}`.
-  dataset.data.y,
-fold_num: 0
-train data
-class: 0 norm count: 0.8518242417412862
-class: 1 norm count: 0.1481757582587138
-validation data
-class: 0 norm count: 0.8518605195413059
-class: 1 norm count: 0.14813948045869413
-test data
-class: 0 norm count: 0.8518379828995819
-class: 1 norm count: 0.14816201710041815
 
--------------------------
-fold_num: 1
-train data
-class: 0 norm count: 0.8518242417412862
-class: 1 norm count: 0.1481757582587138
-validation data
-class: 0 norm count: 0.8518605195413059
-class: 1 norm count: 0.14813948045869413
-test data
-class: 0 norm count: 0.8518379828995819
-class: 1 norm count: 0.14816201710041815
-
--------------------------
-fold_num: 2
-train data
-class: 0 norm count: 0.8518329100318126
-class: 1 norm count: 0.14816708996818737
-validation data
-class: 0 norm count: 0.8518605195413059
-class: 1 norm count: 0.14813948045869413
-test data
-class: 0 norm count: 0.8518067777569743
-class: 1 norm count: 0.14819322224302564
-
--------------------------
-fold_num: 3
-train data
-class: 0 norm count: 0.8518255261606741
-class: 1 norm count: 0.14817447383932597
-validation data
-class: 0 norm count: 0.8518605195413059
-class: 1 norm count: 0.14813948045869413
-test data
-class: 0 norm count: 0.8518333593384303
-class: 1 norm count: 0.14816664066156968
-
--------------------------
-fold_num: 4
-train data
-class: 0 norm count: 0.8518255261606741
-class: 1 norm count: 0.14817447383932597
-validation data
-class: 0 norm count: 0.8518605195413059
-class: 1 norm count: 0.14813948045869413
-test data
-class: 0 norm count: 0.8518333593384303
-class: 1 norm count: 0.14816664066156968
-
--------------------------
-训练集: 115363
-验证集: 12819
-测试集: 32046
-path_current_dir /home/bioinfo202200130116/bioinfo/codebasev5/graphnn/deepadr
-path_current_dir /home/bioinfo202200130116/bioinfo/codebasev5/graphnn/deepadr
-path_current_dir /home/bioinfo202200130116/bioinfo/codebasev5/graphnn/deepadr
-path_current_dir /home/bioinfo202200130116/bioinfo/codebasev5/graphnn/deepadr
-path_current_dir /home/bioinfo202200130116/bioinfo/codebasev5/graphnn/deepadr
-path_current_dir /home/bioinfo202200130116/bioinfo/codebasev5/graphnn/deepadr
+加载 random 场景分区文件...
+  训练集: 115363
+  验证集: 12819
+  测试集: 32046
 path_current_dir /home/bioinfo202200130116/bioinfo/codebasev5/graphnn/deepadr
 path_current_dir /home/bioinfo202200130116/bioinfo/codebasev5/graphnn/deepadr
 path_current_dir /home/bioinfo202200130116/bioinfo/codebasev5/graphnn/deepadr
@@ -91,13 +25,53 @@ path_current_dir /home/bioinfo202200130116/bioinfo/codebasev5/graphnn/deepadr
 path_current_dir /home/bioinfo202200130116/bioinfo/codebasev5/graphnn/deepadr
 path_current_dir /home/bioinfo202200130116/bioinfo/codebasev5/graphnn/deepadr
 
-总共 4 个实验将在 4 个GPU上运行
+加载 cold_drug 场景分区文件...
+  训练集: 69674
+  验证集: 27336
+  测试集: 63218
+path_current_dir /home/bioinfo202200130116/bioinfo/codebasev5/graphnn/deepadr
+path_current_dir /home/bioinfo202200130116/bioinfo/codebasev5/graphnn/deepadr
+path_current_dir /home/bioinfo202200130116/bioinfo/codebasev5/graphnn/deepadr
+path_current_dir /home/bioinfo202200130116/bioinfo/codebasev5/graphnn/deepadr
+path_current_dir /home/bioinfo202200130116/bioinfo/codebasev5/graphnn/deepadr
+path_current_dir /home/bioinfo202200130116/bioinfo/codebasev5/graphnn/deepadr
+
+加载 cold_cell 场景分区文件...
+  训练集: 122561
+  验证集: 11039
+  测试集: 26628
+path_current_dir /home/bioinfo202200130116/bioinfo/codebasev5/graphnn/deepadr
+path_current_dir /home/bioinfo202200130116/bioinfo/codebasev5/graphnn/deepadr
+path_current_dir /home/bioinfo202200130116/bioinfo/codebasev5/graphnn/deepadr
+path_current_dir /home/bioinfo202200130116/bioinfo/codebasev5/graphnn/deepadr
+path_current_dir /home/bioinfo202200130116/bioinfo/codebasev5/graphnn/deepadr
+path_current_dir /home/bioinfo202200130116/bioinfo/codebasev5/graphnn/deepadr
+
+总共 6 个实验将在 6 个GPU上运行
 
 实验列表:
-  1. GIN_Baseline_NoHypergraph                (GPU 0) [KAN:✗ HG:✗]
-  2. GIN_Baseline_Hypergraph                  (GPU 1) [KAN:✗ HG:✓]
-  3. GCN_Baseline_NoHypergraph                (GPU 2) [KAN:✗ HG:✗]
-  4. GCN_Baseline_Hypergraph                  (GPU 3) [KAN:✗ HG:✓]
+  1. GCN_Baseline_Hypergraph_random           (GPU 0) [KAN:✗ HG:✓]
+  2. GCN_KAGNN_fourier_Hypergraph_random      (GPU 1) [KAN:✓ HG:✓]
+  3. GCN_Baseline_Hypergraph_cold_drug        (GPU 2) [KAN:✗ HG:✓]
+  4. GCN_KAGNN_fourier_Hypergraph_cold_drug   (GPU 3) [KAN:✓ HG:✓]
+  5. GCN_Baseline_Hypergraph_cold_cell        (GPU 4) [KAN:✗ HG:✓]
+  6. GCN_KAGNN_fourier_Hypergraph_cold_cell   (GPU 5) [KAN:✓ HG:✓]
 
 开始并行训练...
 ================================================================================
+
+================================================================================
+所有实验完成!
+================================================================================
+
+生成对比报告和图表...
+
+详细报告已保存到: /home/bioinfo202200130116/bioinfo/codebasev5/graphnn/data/processed/DrugComb_loewe_thresh_1/data_v1/experiments/multi_gpu_comparison_2026-05-05_05-50-22/multi_gpu_comparison_report.md
+
+结果保存在: /home/bioinfo202200130116/bioinfo/codebasev5/graphnn/data/processed/DrugComb_loewe_thresh_1/data_v1/experiments/multi_gpu_comparison_2026-05-05_05-50-22
+
+生成的文件:
+  - all_results.csv: 所有结果数据
+  - multi_gpu_comparison_report.md: 详细报告
+  - overall_comparison.png: 总体对比图
+  - comparison_GCN.png: GCN对比图
