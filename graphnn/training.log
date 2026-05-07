@@ -2,14 +2,14 @@
 多GPU并行对比实验
 ================================================================================
 
-使用GPU: [0, 1, 2, 3, 4, 5]
+使用GPU: [0, 1, 2, 3]
 GNN类型: ['gcn']
 KAN类型: fourier
 训练轮数: 100
 path_current_dir /home/bioinfo202200130116/bioinfo/codebasev5/graphnn/deepadr
 path_current_dir /home/bioinfo202200130116/bioinfo/codebasev5/graphnn/deepadr
 
-实验目录: /home/bioinfo202200130116/bioinfo/codebasev5/graphnn/data/processed/DrugComb_loewe_thresh_1/data_v1/experiments/multi_gpu_comparison_2026-05-05_05-50-22
+实验目录: /home/bioinfo202200130116/bioinfo/codebasev5/graphnn/data/processed/DrugComb_loewe_thresh_1/data_v1/experiments/multi_gpu_comparison_2026-05-05_18-37-36
 
 加载数据集...
 数据集大小: 160228
@@ -36,42 +36,13 @@ path_current_dir /home/bioinfo202200130116/bioinfo/codebasev5/graphnn/deepadr
 path_current_dir /home/bioinfo202200130116/bioinfo/codebasev5/graphnn/deepadr
 path_current_dir /home/bioinfo202200130116/bioinfo/codebasev5/graphnn/deepadr
 
-加载 cold_cell 场景分区文件...
-  训练集: 122561
-  验证集: 11039
-  测试集: 26628
-path_current_dir /home/bioinfo202200130116/bioinfo/codebasev5/graphnn/deepadr
-path_current_dir /home/bioinfo202200130116/bioinfo/codebasev5/graphnn/deepadr
-path_current_dir /home/bioinfo202200130116/bioinfo/codebasev5/graphnn/deepadr
-path_current_dir /home/bioinfo202200130116/bioinfo/codebasev5/graphnn/deepadr
-path_current_dir /home/bioinfo202200130116/bioinfo/codebasev5/graphnn/deepadr
-path_current_dir /home/bioinfo202200130116/bioinfo/codebasev5/graphnn/deepadr
-
-总共 6 个实验将在 6 个GPU上运行
+总共 4 个实验将在 4 个GPU上运行
 
 实验列表:
-  1. GCN_Baseline_Hypergraph_random           (GPU 0) [KAN:✗ HG:✓]
-  2. GCN_KAGNN_fourier_Hypergraph_random      (GPU 1) [KAN:✓ HG:✓]
-  3. GCN_Baseline_Hypergraph_cold_drug        (GPU 2) [KAN:✗ HG:✓]
-  4. GCN_KAGNN_fourier_Hypergraph_cold_drug   (GPU 3) [KAN:✓ HG:✓]
-  5. GCN_Baseline_Hypergraph_cold_cell        (GPU 4) [KAN:✗ HG:✓]
-  6. GCN_KAGNN_fourier_Hypergraph_cold_cell   (GPU 5) [KAN:✓ HG:✓]
+  1. GCN_KAGNN_fourier_hypergraph_random      (GPU 0) [KAN:✓ HG:hypergraph]
+  2. GCN_KAGNN_fourier_kan_aggregated_random  (GPU 1) [KAN:✓ HG:kan_aggregated]
+  3. GCN_KAGNN_fourier_hypergraph_cold_drug   (GPU 2) [KAN:✓ HG:hypergraph]
+  4. GCN_KAGNN_fourier_kan_aggregated_cold_drug (GPU 3) [KAN:✓ HG:kan_aggregated]
 
 开始并行训练...
 ================================================================================
-
-================================================================================
-所有实验完成!
-================================================================================
-
-生成对比报告和图表...
-
-详细报告已保存到: /home/bioinfo202200130116/bioinfo/codebasev5/graphnn/data/processed/DrugComb_loewe_thresh_1/data_v1/experiments/multi_gpu_comparison_2026-05-05_05-50-22/multi_gpu_comparison_report.md
-
-结果保存在: /home/bioinfo202200130116/bioinfo/codebasev5/graphnn/data/processed/DrugComb_loewe_thresh_1/data_v1/experiments/multi_gpu_comparison_2026-05-05_05-50-22
-
-生成的文件:
-  - all_results.csv: 所有结果数据
-  - multi_gpu_comparison_report.md: 详细报告
-  - overall_comparison.png: 总体对比图
-  - comparison_GCN.png: GCN对比图

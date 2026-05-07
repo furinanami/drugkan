@@ -1,6 +1,7 @@
 """
 DeepDDS with Hypergraph Integration
 集成超图神经网络的DeepDDS模型实现
+支持三种模式：hypergraph, kan_hypergraph, kan_aggregated
 """
 
 import torch
@@ -11,8 +12,14 @@ import numpy as np
 
 try:
     from .model_gnn_ogb import GATNet, ExpressionNN
+    from .model_kagnn import KAGNN
+    from .kagnn_conv import KAGCNConv
+    from .kan_layers import KANLinear
 except ImportError:
     from model_gnn_ogb import GATNet, ExpressionNN
+    from model_kagnn import KAGNN
+    from kagnn_conv import KAGCNConv
+    from kan_layers import KANLinear
 
 
 class EmbeddingAligner(nn.Module):
@@ -128,24 +135,23 @@ class BatchHypergraphBuilder:
         # 平均化（处理重复节点）
         node_features = node_features / node_counts.unsqueeze(1).clamp(min=1)
 
-        # 4. 构建超边（只使用正样本）
+        # 4. 当前batch每行样本构建一条3节点超边：drug_a + drug_b + cell。
         hyperedge_list = []
         hyperedge_idx_list = []
         edge_count = 0
 
         for i in range(batch_size):
-            if batch_data.y[i].item() == 1:  # 只为正样本创建超边
-                idx_a = batch_node_indices['drug_a'][i].item()
-                idx_b = batch_node_indices['drug_b'][i].item()
-                idx_c = batch_node_indices['cell'][i].item()
+            idx_a = node_mapping[('drug', int(drug_ids_a[i]))]
+            idx_b = node_mapping[('drug', int(drug_ids_b[i]))]
+            idx_c = node_mapping[('cell', int(cell_ids[i]))]
 
-                # 超边连接3个节点
-                hyperedge_list.extend([idx_a, idx_b, idx_c])
-                hyperedge_idx_list.extend([edge_count, edge_count, edge_count])
-                edge_count += 1
+            # 超边连接3个节点
+            hyperedge_list.extend([idx_a, idx_b, idx_c])
+            hyperedge_idx_list.extend([edge_count, edge_count, edge_count])
+            edge_count += 1
 
         if len(hyperedge_list) == 0:
-            # 如果批次中没有正样本，创建空超图
+            # 防御空batch
             hyperedge_index = torch.zeros(2, 0, dtype=torch.long, device=device)
         else:
             hyperedge_index = torch.tensor(
@@ -219,10 +225,272 @@ class HypergraphEncoder(nn.Module):
         return x
 
 
+class KANHypergraphLayer(nn.Module):
+    """KAN版超图消息层：node -> hyperedge -> node。"""
+    def __init__(self, in_channels, out_channels, dropout=0.2, use_kan=True, kan_type='fourier'):
+        super().__init__()
+        self.in_channels = in_channels
+        self.out_channels = out_channels
+        self.use_kan = use_kan
+
+        if use_kan:
+            self.edge_func = KANLinear(in_channels, out_channels, kan_type=kan_type)
+            self.node_func = KANLinear(out_channels, out_channels, kan_type=kan_type)
+        else:
+            self.edge_func = nn.Linear(in_channels, out_channels)
+            self.node_func = nn.Linear(out_channels, out_channels)
+
+        self.skip = nn.Identity() if in_channels == out_channels else nn.Linear(in_channels, out_channels)
+        self.dropout = nn.Dropout(dropout)
+
+    @staticmethod
+    def _mean_aggregate(values, index, dim_size):
+        out = values.new_zeros(dim_size, values.size(-1))
+        counts = values.new_zeros(dim_size, 1)
+        out.index_add_(0, index, values)
+        counts.index_add_(0, index, values.new_ones(values.size(0), 1))
+        return out / counts.clamp(min=1)
+
+    def forward(self, x, hyperedge_index):
+        if hyperedge_index.shape[1] == 0:
+            return self.skip(x)
+
+        node_idx = hyperedge_index[0]
+        edge_idx = hyperedge_index[1]
+        num_edges = int(edge_idx.max().item()) + 1
+
+        edge_msg = self._mean_aggregate(x[node_idx], edge_idx, num_edges)
+        edge_msg = self.edge_func(edge_msg)
+        edge_msg = self.dropout(edge_msg)
+
+        node_msg = self._mean_aggregate(edge_msg[edge_idx], node_idx, x.size(0))
+        node_msg = self.node_func(node_msg)
+
+        return self.skip(x) + node_msg
+
+
+class KANHypergraphEncoder(nn.Module):
+    """保持原始超图结构，只把超边消息函数替换成KAN。"""
+    def __init__(self, in_channels=128, hidden_channels=256, out_channels=128,
+                 dropout=0.2, use_kan=True, kan_type='fourier'):
+        super().__init__()
+
+        self.layer1 = KANHypergraphLayer(in_channels, hidden_channels, dropout, use_kan, kan_type)
+        self.bn1 = nn.BatchNorm1d(hidden_channels)
+
+        self.layer2 = KANHypergraphLayer(hidden_channels, hidden_channels, dropout, use_kan, kan_type)
+        self.bn2 = nn.BatchNorm1d(hidden_channels)
+
+        self.layer3 = KANHypergraphLayer(hidden_channels, out_channels, dropout, use_kan, kan_type)
+        self.bn3 = nn.BatchNorm1d(out_channels)
+
+        self.act = nn.ReLU()
+        self.dropout = nn.Dropout(dropout)
+
+    def forward(self, x, hyperedge_index):
+        x = self.layer1(x, hyperedge_index)
+        x = self.bn1(x)
+        x = self.act(x)
+        x = self.dropout(x)
+
+        x = self.layer2(x, hyperedge_index)
+        x = self.bn2(x)
+        x = self.act(x)
+        x = self.dropout(x)
+
+        x = self.layer3(x, hyperedge_index)
+        x = self.bn3(x)
+        x = self.act(x)
+
+        return x
+
+
+class KANAggregatedGraphBuilder:
+    """为KAN聚合版构建普通图结构（将药物对聚合后与细胞构成边）"""
+
+    @staticmethod
+    def build_graph(batch_data, drug_emb_a, drug_emb_b, cell_emb):
+        """
+        构建KAN聚合版图结构
+
+        Args:
+            batch_data: PyTorch Geometric Batch对象
+            drug_emb_a: [batch, dim] 药物A嵌入
+            drug_emb_b: [batch, dim] 药物B嵌入
+            cell_emb: [batch, dim] 细胞系嵌入
+
+        Returns:
+            node_features: [N_nodes, dim] 节点特征矩阵
+            edge_index: [2, N_edges] 图邻接矩阵
+            node_mapping: dict 节点ID到索引的映射
+            batch_node_indices: dict 批次样本到节点索引的映射
+        """
+        device = drug_emb_a.device
+        batch_size = len(batch_data.y)
+        emb_dim = drug_emb_a.shape[1]
+
+        # 1. 先将每个样本的两个drug嵌入平均，得到药物对嵌入
+        drug_pair_emb = (drug_emb_a + drug_emb_b) / 2.0  # [batch, dim]
+
+        # 2. 收集唯一的药物对和细胞系ID
+        # 药物对ID使用 (drug_a_id, drug_b_id) 元组
+        drug_ids_a = batch_data.drug_a_id.cpu().numpy()
+        drug_ids_b = batch_data.drug_b_id.cpu().numpy()
+        cell_ids = batch_data.cell_id.cpu().numpy()
+
+        # 创建药物对ID（排序后的元组，确保(A,B)和(B,A)被视为同一对）
+        drug_pair_ids = [tuple(sorted([int(drug_ids_a[i]), int(drug_ids_b[i])]))
+                        for i in range(batch_size)]
+
+        # 3. 创建全局节点映射
+        unique_drug_pairs = sorted(set(drug_pair_ids))
+        unique_cells = np.unique(cell_ids)
+
+        node_mapping = {}
+        node_idx = 0
+
+        # 药物对节点
+        for drug_pair_id in unique_drug_pairs:
+            node_mapping[('drug_pair', drug_pair_id)] = node_idx
+            node_idx += 1
+
+        # 细胞系节点
+        for cell_id in unique_cells:
+            node_mapping[('cell', int(cell_id))] = node_idx
+            node_idx += 1
+
+        N_nodes = len(node_mapping)
+
+        # 4. 聚合节点特征（处理同一药物对/细胞系在批次中多次出现）
+        node_features = torch.zeros(N_nodes, emb_dim, device=device)
+        node_counts = torch.zeros(N_nodes, device=device)
+
+        # 记录每个批次样本对应的节点索引
+        batch_node_indices = {
+            'drug_pair': torch.zeros(batch_size, dtype=torch.long, device=device),
+            'cell': torch.zeros(batch_size, dtype=torch.long, device=device)
+        }
+
+        for i in range(batch_size):
+            # 药物对
+            idx_pair = node_mapping[('drug_pair', drug_pair_ids[i])]
+            node_features[idx_pair] += drug_pair_emb[i]
+            node_counts[idx_pair] += 1
+            batch_node_indices['drug_pair'][i] = idx_pair
+
+            # 细胞系
+            idx_c = node_mapping[('cell', int(cell_ids[i]))]
+            node_features[idx_c] += cell_emb[i]
+            node_counts[idx_c] += 1
+            batch_node_indices['cell'][i] = idx_c
+
+        # 平均化（处理重复节点）
+        node_features = node_features / node_counts.unsqueeze(1).clamp(min=1)
+
+        # 5. 当前batch内pair-cell边；pair-pair边表示batch内药物对共享单药。
+        edge_set = set()
+
+        for i in range(batch_size):
+            idx_pair = node_mapping[('drug_pair', drug_pair_ids[i])]
+            idx_c = node_mapping[('cell', int(cell_ids[i]))]
+            edge_set.add((idx_pair, idx_c))
+            edge_set.add((idx_c, idx_pair))
+
+        for i, pair_i in enumerate(unique_drug_pairs):
+            idx_i = node_mapping[('drug_pair', pair_i)]
+            drugs_i = set(pair_i)
+            for pair_j in unique_drug_pairs[i + 1:]:
+                if drugs_i.intersection(pair_j):
+                    idx_j = node_mapping[('drug_pair', pair_j)]
+                    edge_set.add((idx_i, idx_j))
+                    edge_set.add((idx_j, idx_i))
+
+        if len(edge_set) == 0:
+            # 防御空batch
+            edge_index = torch.zeros(2, 0, dtype=torch.long, device=device)
+        else:
+            edge_list = sorted(edge_set)
+            edge_index = torch.tensor(
+                edge_list,
+                dtype=torch.long,
+                device=device
+            ).t().contiguous()
+
+        return node_features, edge_index, node_mapping, batch_node_indices
+
+
+class KANAggregatedGraphEncoder(nn.Module):
+    """KAN聚合版图编码器，使用KAGCNConv"""
+    def __init__(self, in_channels=128, hidden_channels=256, out_channels=128,
+                 dropout=0.2, use_kan=True, kan_type='fourier'):
+        super().__init__()
+
+        self.use_kan = use_kan
+
+        # 三层KAGCNConv
+        self.conv1 = KAGCNConv(in_channels, hidden_channels, use_kan=use_kan, kan_type=kan_type)
+        self.bn1 = nn.BatchNorm1d(hidden_channels)
+
+        self.conv2 = KAGCNConv(hidden_channels, hidden_channels, use_kan=use_kan, kan_type=kan_type)
+        self.bn2 = nn.BatchNorm1d(hidden_channels)
+
+        self.conv3 = KAGCNConv(hidden_channels, out_channels, use_kan=use_kan, kan_type=kan_type)
+        self.bn3 = nn.BatchNorm1d(out_channels)
+
+        self.act = nn.ReLU()
+        self.dropout = nn.Dropout(dropout)
+
+        # 用于无边情况的线性变换
+        self.linear_fallback = nn.Sequential(
+            nn.Linear(in_channels, hidden_channels),
+            nn.BatchNorm1d(hidden_channels),
+            nn.ReLU(),
+            nn.Dropout(dropout),
+            nn.Linear(hidden_channels, hidden_channels),
+            nn.BatchNorm1d(hidden_channels),
+            nn.ReLU(),
+            nn.Dropout(dropout),
+            nn.Linear(hidden_channels, out_channels),
+            nn.BatchNorm1d(out_channels),
+            nn.ReLU()
+        )
+
+    def forward(self, x, edge_index):
+        """
+        Args:
+            x: [N_nodes, in_channels] 节点特征
+            edge_index: [2, N_edges] 图邻接矩阵
+        Returns:
+            x: [N_nodes, out_channels] 增强的节点嵌入
+        """
+        # 如果没有边，使用线性变换作为fallback
+        if edge_index.shape[1] == 0:
+            return self.linear_fallback(x)
+
+        # KAGCNConv: h' = h + KAN((h + mean(邻居)) / 2)
+        x = self.conv1(x, edge_index)
+        x = self.bn1(x)
+        x = self.act(x)
+        x = self.dropout(x)
+
+        x = self.conv2(x, edge_index)
+        x = self.bn2(x)
+        x = self.act(x)
+        x = self.dropout(x)
+
+        x = self.conv3(x, edge_index)
+        x = self.bn3(x)
+        x = self.act(x)
+
+        return x
+
+
 class HypergraphDecoder(nn.Module):
     """基于超图嵌入的协同作用预测器"""
-    def __init__(self, in_channels=384, hidden1=256, hidden2=128, num_classes=2, dropout=0.2):
+    def __init__(self, in_channels=384, hidden1=256, hidden2=128, num_classes=2,
+                 dropout=0.2, task='classification'):
         super().__init__()
+        self.task = task
 
         self.fc1 = nn.Linear(in_channels, hidden1)
         self.bn1 = nn.BatchNorm1d(hidden1)
@@ -230,7 +498,8 @@ class HypergraphDecoder(nn.Module):
         self.fc2 = nn.Linear(hidden1, hidden2)
         self.bn2 = nn.BatchNorm1d(hidden2)
 
-        self.fc3 = nn.Linear(hidden2, num_classes)
+        output_dim = 1 if task == 'regression' else num_classes
+        self.fc3 = nn.Linear(hidden2, output_dim)
 
         self.dropout = nn.Dropout(dropout)
         self.act = nn.ReLU()
@@ -252,7 +521,8 @@ class HypergraphDecoder(nn.Module):
             h_b: [batch, dim] 药物B的超图嵌入
             h_e: [batch, dim] 细胞系的超图嵌入
         Returns:
-            log_probs: [batch, num_classes] log-softmax分数
+            classification: [batch, num_classes] log-softmax分数
+            regression: [batch] raw regression score
         """
         x = torch.cat([h_a, h_b, h_e], dim=-1)  # [batch, 3*dim]
 
@@ -267,11 +537,21 @@ class HypergraphDecoder(nn.Module):
         x = self.dropout(x)
 
         x = self.fc3(x)
+        if self.task == 'regression':
+            return x.squeeze(-1)
         return self.log_softmax(x)
 
 
 class DeepDDS_Hypergraph(nn.Module):
-    """集成超图的DeepDDS模型（支持开关控制是否使用超图）"""
+    """
+    集成超图的DeepDDS模型（支持三种模式）
+
+    模式选择：
+    - 'mlp': 不使用图结构，直接MLP
+    - 'hypergraph': 原始超图（3节点超边：drug_a + drug_b + cell）
+    - 'kan_hypergraph': 原始超图结构 + KAN超边消息函数
+    - 'kan_aggregated': KAN聚合版（drug_pair-cell + shared-drug pair-pair）
+    """
     def __init__(self,
                  num_features_xd=9,
                  gat_output_dim=128,
@@ -285,19 +565,43 @@ class DeepDDS_Hypergraph(nn.Module):
                  num_classes=2,
                  dropout=0.2,
                  num_attn_heads=10,
-                 use_hypergraph=True):  # 新增开关参数
+                 hypergraph_mode='hypergraph',
+                 use_kan=True,
+                 kan_type='fourier',
+                 use_drug_kan=True,
+                 gnn_type='gcn',
+                 num_layer=5,
+                 graph_pooling='mean',
+                 task='classification'):
         super().__init__()
 
-        self.use_hypergraph = use_hypergraph  # 保存开关状态
+        self.hypergraph_mode = hypergraph_mode  # 保存模式状态
+        self.use_drug_kan = use_drug_kan
+        self.task = task
 
-        # Stage 1: 原有编码器
-        self.gat_encoder = GATNet(
-            num_features_xd=num_features_xd,
-            n_output=num_classes,
-            output_dim=gat_output_dim,
-            dropout=dropout,
-            heads=num_attn_heads
-        )
+        # Stage 1: 药物编码器
+        self.drug_encoder_uses_atom_encoder = gnn_type != 'gatnet'
+        if self.drug_encoder_uses_atom_encoder:
+            self.drug_encoder = KAGNN(
+                gnn_type=gnn_type,
+                num_layer=num_layer,
+                emb_dim=gat_output_dim,
+                drop_ratio=dropout,
+                JK="last",
+                graph_pooling=graph_pooling,
+                virtual_node=False,
+                with_edge_attr=False,
+                use_kan=use_drug_kan,
+                kan_type=kan_type
+            )
+        else:
+            self.drug_encoder = GATNet(
+                num_features_xd=num_features_xd,
+                n_output=num_classes,
+                output_dim=gat_output_dim,
+                dropout=dropout,
+                heads=num_attn_heads
+            )
 
         self.expression_encoder = ExpressionNN(
             D_in=expression_input_size,
@@ -314,8 +618,9 @@ class DeepDDS_Hypergraph(nn.Module):
             output_dim=unified_dim
         )
 
-        # Stage 3: 超图编码器（仅在use_hypergraph=True时使用）
-        if self.use_hypergraph:
+        # Stage 3: 图编码器（根据模式选择）
+        if self.hypergraph_mode == 'hypergraph':
+            # 原始超图模式
             self.hypergraph_encoder = HypergraphEncoder(
                 in_channels=unified_dim,
                 hidden_channels=hypergraph_hidden,
@@ -323,6 +628,28 @@ class DeepDDS_Hypergraph(nn.Module):
                 dropout=dropout
             )
             self.hypergraph_builder = BatchHypergraphBuilder()
+        elif self.hypergraph_mode == 'kan_hypergraph':
+            self.hypergraph_encoder = KANHypergraphEncoder(
+                in_channels=unified_dim,
+                hidden_channels=hypergraph_hidden,
+                out_channels=unified_dim,
+                dropout=dropout,
+                use_kan=use_kan,
+                kan_type=kan_type
+            )
+            self.hypergraph_builder = BatchHypergraphBuilder()
+        elif self.hypergraph_mode == 'kan_aggregated':
+            # KAN聚合版图模式
+            self.kan_graph_encoder = KANAggregatedGraphEncoder(
+                in_channels=unified_dim,
+                hidden_channels=hypergraph_hidden,
+                out_channels=unified_dim,
+                dropout=dropout,
+                use_kan=use_kan,
+                kan_type=kan_type
+            )
+            self.kan_graph_builder = KANAggregatedGraphBuilder()
+        # else: mlp模式不需要图编码器
 
         # Stage 4: 解码器
         self.decoder = HypergraphDecoder(
@@ -330,10 +657,25 @@ class DeepDDS_Hypergraph(nn.Module):
             hidden1=decoder_hidden1,
             hidden2=decoder_hidden2,
             num_classes=num_classes,
-            dropout=dropout
+            dropout=dropout,
+            task=task
         )
 
         self.unified_dim = unified_dim
+
+    def _encode_drug(self, x, edge_index, edge_attr, batch):
+        if self.drug_encoder_uses_atom_encoder:
+            return self.drug_encoder(x.long(), edge_index, edge_attr, batch)
+        return self.drug_encoder(x.type(torch.float32), edge_index, edge_attr, batch)
+
+    def _encode_modalities(self, batch):
+        h_a_raw = self._encode_drug(batch.x_a, batch.edge_index_a, batch.edge_attr_a, batch.x_a_batch)
+        h_b_raw = self._encode_drug(batch.x_b, batch.edge_index_b, batch.edge_attr_b, batch.x_b_batch)
+        h_e_raw = self.expression_encoder(batch.expression)
+
+        h_a_aligned, h_e_aligned = self.embedding_aligner(h_a_raw, h_e_raw)
+        h_b_aligned, _ = self.embedding_aligner(h_b_raw, h_e_raw)
+        return h_a_aligned, h_b_aligned, h_e_aligned
 
     def forward(self, batch):
         """
@@ -342,76 +684,77 @@ class DeepDDS_Hypergraph(nn.Module):
                 - x_a, edge_index_a, edge_attr_a, x_a_batch: 药物A图数据
                 - x_b, edge_index_b, edge_attr_b, x_b_batch: 药物B图数据
                 - expression: 细胞系基因表达
-                - drug_a_id, drug_b_id, cell_id: 节点ID（仅use_hypergraph=True时需要）
+                - drug_a_id, drug_b_id, cell_id: 节点ID（图模式需要）
                 - y: 标签
         Returns:
             log_probs: [batch, num_classes] 预测分数
         """
-        device = batch.x_a.device
-        batch_size = len(batch.y)
+        # Stage 1-2: 仅编码当前query batch。
+        h_a_aligned, h_b_aligned, h_e_aligned = self._encode_modalities(batch)
+        # h_a_aligned, h_b_aligned, h_e_aligned: [batch, unified_dim]
 
-        # Stage 1: 编码原始特征
-        h_a_raw = self.gat_encoder(
-            batch.x_a.type(torch.float32),
-            batch.edge_index_a,
-            batch.edge_attr_a,
-            batch.x_a_batch
-        )  # [batch, 128]
-
-        h_b_raw = self.gat_encoder(
-            batch.x_b.type(torch.float32),
-            batch.edge_index_b,
-            batch.edge_attr_b,
-            batch.x_b_batch
-        )  # [batch, 128]
-
-        h_e_raw = self.expression_encoder(batch.expression)  # [batch, 256]
-
-        # Stage 2: 对齐嵌入维度
-        h_a_aligned, h_e_aligned = self.embedding_aligner(h_a_raw, h_e_raw)
-        h_b_aligned, _ = self.embedding_aligner(h_b_raw, h_e_raw)
-        # h_a_aligned, h_b_aligned, h_e_aligned: [batch, 256]
-
-        if self.use_hypergraph:
-            # ===== 超图模式 =====
-            # Stage 3: 构建超图
+        if self.hypergraph_mode in ['hypergraph', 'kan_hypergraph']:
+            # ===== 原始超图模式 =====
+            # Stage 3: 构建超图（3节点超边：drug_a + drug_b + cell）
             node_features, hyperedge_index, node_mapping, batch_node_indices = \
                 self.hypergraph_builder.build_hypergraph(
                     batch, h_a_aligned, h_b_aligned, h_e_aligned
                 )
-            # node_features: [N_nodes, 256]
-            # hyperedge_index: [2, N_edges]
 
             # Stage 4: 超图卷积
             node_embeddings = self.hypergraph_encoder(
                 node_features, hyperedge_index
-            )  # [N_nodes, 256]
+            )
 
             # Stage 5: 提取对应的节点嵌入
             h_a_enhanced = node_embeddings[batch_node_indices['drug_a']]
             h_b_enhanced = node_embeddings[batch_node_indices['drug_b']]
             h_e_enhanced = node_embeddings[batch_node_indices['cell']]
-        else:
+
+        elif self.hypergraph_mode == 'kan_aggregated':
+            # ===== KAN聚合版图模式 =====
+            # Stage 3: 构建普通图（2节点边：drug_pair + cell）
+            node_features, edge_index, node_mapping, batch_node_indices = \
+                self.kan_graph_builder.build_graph(
+                    batch, h_a_aligned, h_b_aligned, h_e_aligned
+                )
+
+            # Stage 4: KAGCNConv图卷积：h' = h + KAN((h + mean(邻居)) / 2)
+            node_embeddings = self.kan_graph_encoder(
+                node_features, edge_index
+            )
+
+            # Stage 5: 提取对应的节点嵌入
+            # 注意：KAN聚合版中，drug_pair已经是平均后的结果
+            # 但decoder期望3个输入，所以我们需要将drug_pair拆分回两个drug
+            drug_pair_emb = node_embeddings[batch_node_indices['drug_pair']]
+            h_e_enhanced = node_embeddings[batch_node_indices['cell']]
+
+            # 将drug_pair嵌入复制给两个drug（因为它们已经被聚合了）
+            h_a_enhanced = drug_pair_emb
+            h_b_enhanced = drug_pair_emb
+
+        else:  # mlp模式
             # ===== 简单MLP模式（原始DeepDDS方式）=====
-            # 直接使用对齐后的嵌入，不经过超图
+            # 直接使用对齐后的嵌入，不经过图结构
             h_a_enhanced = h_a_aligned
             h_b_enhanced = h_b_aligned
             h_e_enhanced = h_e_aligned
 
-        # Stage 6: 预测（两种模式共用）
+        # Stage 6: 预测（三种模式共用）
         log_probs = self.decoder(h_a_enhanced, h_b_enhanced, h_e_enhanced)
 
         return log_probs
 
 
 class DeepDDS_Hypergraph_WithReconstruction(DeepDDS_Hypergraph):
-    """带重构损失的超图DeepDDS模型（仅在use_hypergraph=True时有效）"""
+    """带重构损失的超图DeepDDS模型（仅在hypergraph模式时有效）"""
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
         # 重构权重矩阵（仅在使用超图时有意义）
-        if self.use_hypergraph:
-            unified_dim = kwargs.get('unified_dim', 256)
+        if self.hypergraph_mode in ['hypergraph', 'kan_hypergraph']:
+            unified_dim = kwargs.get('unified_dim', 128)
             self.drug_rec_weight = nn.Parameter(torch.randn(unified_dim, unified_dim))
             self.cell_rec_weight = nn.Parameter(torch.randn(unified_dim, unified_dim))
 
@@ -422,31 +765,15 @@ class DeepDDS_Hypergraph_WithReconstruction(DeepDDS_Hypergraph):
         """
         Returns:
             log_probs: [batch, num_classes] 预测分数
-            rec_drug: [N_drugs, N_drugs] 重构的药物相似度矩阵（仅use_hypergraph=True）
-            rec_cell: [N_cells, N_cells] 重构的细胞系相似度矩阵（仅use_hypergraph=True）
+            rec_drug: [N_drugs, N_drugs] 重构的药物相似度矩阵（仅hypergraph模式）
+            rec_cell: [N_cells, N_cells] 重构的细胞系相似度矩阵（仅hypergraph模式）
         """
         device = batch.x_a.device
-        batch_size = len(batch.y)
 
-        # Stage 1-2: 编码和对齐
-        h_a_raw = self.gat_encoder(
-            batch.x_a.type(torch.float32),
-            batch.edge_index_a,
-            batch.edge_attr_a,
-            batch.x_a_batch
-        )
-        h_b_raw = self.gat_encoder(
-            batch.x_b.type(torch.float32),
-            batch.edge_index_b,
-            batch.edge_attr_b,
-            batch.x_b_batch
-        )
-        h_e_raw = self.expression_encoder(batch.expression)
+        # Stage 1-2: 仅编码当前query batch。
+        h_a_aligned, h_b_aligned, h_e_aligned = self._encode_modalities(batch)
 
-        h_a_aligned, h_e_aligned = self.embedding_aligner(h_a_raw, h_e_raw)
-        h_b_aligned, _ = self.embedding_aligner(h_b_raw, h_e_raw)
-
-        if self.use_hypergraph:
+        if self.hypergraph_mode in ['hypergraph', 'kan_hypergraph']:
             # ===== 超图模式 =====
             # Stage 3-4: 超图构建和卷积
             node_features, hyperedge_index, node_mapping, batch_node_indices = \
@@ -484,11 +811,23 @@ class DeepDDS_Hypergraph_WithReconstruction(DeepDDS_Hypergraph):
 
             return log_probs, rec_drug, rec_cell
         else:
-            # ===== 简单MLP模式 =====
-            # 不使用超图时，不计算重构损失
-            h_a_enhanced = h_a_aligned
-            h_b_enhanced = h_b_aligned
-            h_e_enhanced = h_e_aligned
+            # ===== 其他模式（mlp或kan_aggregated）=====
+            # 不使用重构损失
+            if self.hypergraph_mode == 'kan_aggregated':
+                node_features, edge_index, node_mapping, batch_node_indices = \
+                    self.kan_graph_builder.build_graph(
+                        batch, h_a_aligned, h_b_aligned, h_e_aligned
+                    )
+                node_embeddings = self.kan_graph_encoder(node_features, edge_index)
+
+                drug_pair_emb = node_embeddings[batch_node_indices['drug_pair']]
+                h_e_enhanced = node_embeddings[batch_node_indices['cell']]
+                h_a_enhanced = drug_pair_emb
+                h_b_enhanced = drug_pair_emb
+            else:  # mlp模式
+                h_a_enhanced = h_a_aligned
+                h_b_enhanced = h_b_aligned
+                h_e_enhanced = h_e_aligned
 
             log_probs = self.decoder(h_a_enhanced, h_b_enhanced, h_e_enhanced)
 

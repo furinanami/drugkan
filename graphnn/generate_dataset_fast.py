@@ -124,6 +124,8 @@ y_labels = {}
 expressions = {}
 drug_ids = {}  # 新增：保存每个样本的药物ID
 cell_ids = {}  # 新增：保存每个样本的细胞系ID
+loewe_scores = {}  # 连续Loewe协同分数
+zip_scores = {}  # 连续ZIP协同分数
 
 sample_idx = 0
 for cell_line, group in tqdm(grouped_by_cell, desc="  处理细胞系"):
@@ -155,6 +157,8 @@ for cell_line, group in tqdm(grouped_by_cell, desc="  处理细胞系"):
         expressions[sample_idx] = cell_expr
         drug_ids[sample_idx] = (drug1_id, drug2_id)  # 保存药物ID对
         cell_ids[sample_idx] = cell_line  # 保存细胞系ID
+        loewe_scores[sample_idx] = float(row['synergy_loewe'])
+        zip_scores[sample_idx] = float(row['synergy_zip'])
 
         sample_idx += 1
 
@@ -182,6 +186,14 @@ with open(f'{processed_dir}/cell_ids.pkl', 'wb') as f:
     pickle.dump(cell_ids, f)
 print(f"  ✓ 保存细胞系ID")
 
+with open(f'{processed_dir}/loewe_scores.pkl', 'wb') as f:
+    pickle.dump(loewe_scores, f)
+print(f"  ✓ 保存Loewe协同分数")
+
+with open(f'{processed_dir}/zip_scores.pkl', 'wb') as f:
+    pickle.dump(zip_scores, f)
+print(f"  ✓ 保存ZIP协同分数")
+
 # 同时保存到PyG数据集格式的raw目录（用于MoleculeDataset加载）
 pyg_dataset_dir = f'{processed_dir}/DrugComb_loewe_thresh_1/data_v1'
 os.makedirs(f'{pyg_dataset_dir}/raw', exist_ok=True)
@@ -200,6 +212,12 @@ with open(f'{pyg_dataset_dir}/raw/drug_ids.pkl', 'wb') as f:
 
 with open(f'{pyg_dataset_dir}/raw/cell_ids.pkl', 'wb') as f:
     pickle.dump(cell_ids, f)
+
+with open(f'{pyg_dataset_dir}/raw/loewe_scores.pkl', 'wb') as f:
+    pickle.dump(loewe_scores, f)
+
+with open(f'{pyg_dataset_dir}/raw/zip_scores.pkl', 'wb') as f:
+    pickle.dump(zip_scores, f)
 
 print(f"  ✓ 保存PyG数据集格式文件到 {pyg_dataset_dir}/raw/")
 

@@ -297,6 +297,10 @@ class KAGCNConv(MessagePassing):
             # baseline使用普通线性层
             self.linear = nn.Linear(in_channels, out_channels)
 
+        self.skip_connection = (
+            nn.Identity() if in_channels == out_channels else nn.Linear(in_channels, out_channels)
+        )
+
     def forward(self, x, edge_index):
         """
         Args:
@@ -319,13 +323,7 @@ class KAGCNConv(MessagePassing):
             transformed = self.linear(combined)
 
         # 4. 与自身相加（残差连接）
-        # 如果维度不同，需要先投影x
-        if self.in_channels != self.out_channels:
-            if not hasattr(self, 'skip_connection'):
-                self.skip_connection = nn.Linear(self.in_channels, self.out_channels).to(x.device)
-            x_skip = self.skip_connection(x)
-        else:
-            x_skip = x
+        x_skip = self.skip_connection(x)
 
         out = x_skip + transformed
 
@@ -334,3 +332,40 @@ class KAGCNConv(MessagePassing):
     def message(self, x_j):
         """直接传递邻居特征，聚合方式由aggr='mean'控制"""
         return x_j
+
+
+class KAGCNNeighborConv(MessagePassing):
+    """
+    Neighbor-transform KAGCN.
+
+    每条邻居消息先经过可学习函数 phi，再流向目标节点；目标节点把
+    mean(phi(h_j)) 和自身 h_i 相加取平均作为下一层表示：
+
+        h_i' = (skip(h_i) + mean(phi(h_j), j in N(i))) / 2
+
+    use_kan=True 时 phi 是 KANLinear；否则是普通 Linear。
+    """
+    def __init__(self, in_channels, out_channels, use_kan=True, kan_type='fourier'):
+        super(KAGCNNeighborConv, self).__init__(aggr='mean')
+
+        self.in_channels = in_channels
+        self.out_channels = out_channels
+        self.use_kan = use_kan
+        self.kan_type = kan_type
+
+        if use_kan:
+            self.neighbor_func = KANLinear(in_channels, out_channels, kan_type=kan_type)
+        else:
+            self.neighbor_func = nn.Linear(in_channels, out_channels)
+
+        self.skip_connection = (
+            nn.Identity() if in_channels == out_channels else nn.Linear(in_channels, out_channels)
+        )
+
+    def forward(self, x, edge_index):
+        neighbor_msg = self.propagate(edge_index, x=x)
+        x_skip = self.skip_connection(x)
+        return (x_skip + neighbor_msg) / 2.0
+
+    def message(self, x_j):
+        return self.neighbor_func(x_j)

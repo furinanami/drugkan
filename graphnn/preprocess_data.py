@@ -163,7 +163,10 @@ df_drugcomb_filter = df_drugcomb_filter.rename(columns={
     "drug_col_smiles": "Drug2"
 })
 
-col_sel = ['Drug1_ID', 'Drug2_ID', 'Cell_Line_ID', 'Cosmic_ID', 'Drug1', 'Drug2', 'Y']
+col_sel = [
+    'Drug1_ID', 'Drug2_ID', 'Cell_Line_ID', 'Cosmic_ID',
+    'Drug1', 'Drug2', 'Y', 'synergy_loewe', 'synergy_zip'
+]
 output_file = f'{preprocessing_dir}/drugcomb_{score}_{score_val}.csv'
 df_drugcomb_filter[col_sel].to_csv(output_file, index=False)
 print(f"  ✓ 保存最终数据到 {output_file}")

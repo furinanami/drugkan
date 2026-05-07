@@ -99,6 +99,14 @@ class MoleculeDataset(InMemoryDataset):
             expression = ReaderWriter.read_data(os.path.join(self.raw_dir, 'expression.pkl'))
             drug_ids = ReaderWriter.read_data(os.path.join(self.raw_dir, 'drug_ids.pkl'))
             cell_ids = ReaderWriter.read_data(os.path.join(self.raw_dir, 'cell_ids.pkl'))
+            loewe_scores = None
+            zip_scores = None
+            loewe_path = os.path.join(self.raw_dir, 'loewe_scores.pkl')
+            zip_path = os.path.join(self.raw_dir, 'zip_scores.pkl')
+            if os.path.exists(loewe_path):
+                loewe_scores = ReaderWriter.read_data(loewe_path)
+            if os.path.exists(zip_path):
+                zip_scores = ReaderWriter.read_data(zip_path)
 
             for i,data in X.items():
                 data.id = torch.tensor(
@@ -115,6 +123,11 @@ class MoleculeDataset(InMemoryDataset):
                 # 添加细胞系ID
                 cell_id = cell_ids[i]
                 data.cell_id = torch.tensor([hash(cell_id) % 1000], dtype=torch.long)
+
+                if loewe_scores is not None:
+                    data.loewe_score = torch.tensor([loewe_scores[i]], dtype=torch.float32)
+                if zip_scores is not None:
+                    data.zip_score = torch.tensor([zip_scores[i]], dtype=torch.float32)
 
                 data_list.append(data)                 
 

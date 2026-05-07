@@ -8,7 +8,7 @@ import torch.nn.functional as F
 from torch_geometric.nn.conv import GATConv, GCNConv, GINConv
 from ogb.graphproppred.mol_encoder import AtomEncoder
 
-from .kagnn_conv import KAGATConv, KAGINConv, KAGINConvWEdge, KAGCNConv
+from .kagnn_conv import KAGATConv, KAGINConv, KAGINConvWEdge, KAGCNConv, KAGCNNeighborConv
 
 
 class KAGNN_node(nn.Module):
@@ -76,6 +76,8 @@ class KAGNN_node(nn.Module):
                         self.convs.append(KAGINConv(emb_dim, use_kan=True, kan_type=kan_type))
                     elif gnn_type == 'gcn':
                         self.convs.append(KAGCNConv(emb_dim, emb_dim, use_kan=True, kan_type=kan_type))
+                    elif gnn_type in ['kagcn_neighbor', 'gcn_neighbor', 'kagcn_msg']:
+                        self.convs.append(KAGCNNeighborConv(emb_dim, emb_dim, use_kan=True, kan_type=kan_type))
                     elif gnn_type in ['gat', 'gatv2']:
                         self.convs.append(KAGATConv(emb_dim, emb_dim, heads=1, concat=False,
                                                     use_kan=True, kan_type=kan_type))
@@ -104,6 +106,8 @@ class KAGNN_node(nn.Module):
                         self.convs.append(GINConv(gin_nn))
                     elif gnn_type == 'gcn':
                         self.convs.append(GCNConv(emb_dim, emb_dim))
+                    elif gnn_type in ['kagcn_neighbor', 'gcn_neighbor', 'kagcn_msg']:
+                        self.convs.append(KAGCNNeighborConv(emb_dim, emb_dim, use_kan=False, kan_type=kan_type))
                     elif gnn_type in ['gat', 'gatv2']:
                         self.convs.append(GATConv(emb_dim, emb_dim))
                     else:
@@ -215,6 +219,8 @@ class KAGNN_node_Virtualnode(nn.Module):
                     self.convs.append(KAGINConv(emb_dim, use_kan=True, kan_type=kan_type))
                 elif gnn_type == 'gcn':
                     self.convs.append(KAGCNConv(emb_dim, emb_dim, use_kan=True, kan_type=kan_type))
+                elif gnn_type in ['kagcn_neighbor', 'gcn_neighbor', 'kagcn_msg']:
+                    self.convs.append(KAGCNNeighborConv(emb_dim, emb_dim, use_kan=True, kan_type=kan_type))
                 else:
                     raise ValueError(f'Virtual node not supported for KAN-enhanced {gnn_type}')
             else:
@@ -223,6 +229,8 @@ class KAGNN_node_Virtualnode(nn.Module):
                     self.convs.append(GINConv(emb_dim))
                 elif gnn_type == 'gcn':
                     self.convs.append(GCNConv(emb_dim))
+                elif gnn_type in ['kagcn_neighbor', 'gcn_neighbor', 'kagcn_msg']:
+                    self.convs.append(KAGCNNeighborConv(emb_dim, emb_dim, use_kan=False, kan_type=kan_type))
                 else:
                     raise ValueError(f'Undefined GNN type: {gnn_type}')
 
