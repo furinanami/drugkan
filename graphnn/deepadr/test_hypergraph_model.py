@@ -12,6 +12,7 @@ from model_hypergraph import (
     DeepDDS_Hypergraph_WithReconstruction,
     EmbeddingAligner,
     HypergraphEncoder,
+    MeanHypergraphEncoder,
     HypergraphDecoder,
     BatchHypergraphBuilder
 )
@@ -150,6 +151,26 @@ def test_hypergraph_encoder():
     assert output_fallback.shape == (30, 256), "Fallback输出维度错误"
 
     print("✓ HypergraphEncoder 测试通过！")
+
+
+def test_mean_hypergraph_encoder():
+    """测试纯平均超图编码器"""
+    print("\n" + "="*50)
+    print("测试 MeanHypergraphEncoder")
+    print("="*50)
+
+    encoder = MeanHypergraphEncoder(in_channels=256, hidden_channels=512, out_channels=256)
+    node_features = torch.randn(30, 256)
+    hyperedge_index = torch.randint(0, 30, (2, 60))
+
+    output = encoder(node_features, hyperedge_index)
+
+    print(f"✓ 输入节点特征: {node_features.shape}")
+    print(f"✓ 超边索引: {hyperedge_index.shape}")
+    print(f"✓ 输出节点嵌入: {output.shape}")
+    assert output.shape == (30, 256), "输出维度错误"
+
+    print("✓ MeanHypergraphEncoder 测试通过！")
 
 
 def test_hypergraph_decoder():
@@ -374,6 +395,7 @@ def run_all_tests():
         test_embedding_aligner()
         test_hypergraph_builder()
         test_hypergraph_encoder()
+        test_mean_hypergraph_encoder()
         test_hypergraph_decoder()
         test_deepdds_hypergraph_mode()
         test_deepdds_mlp_mode()

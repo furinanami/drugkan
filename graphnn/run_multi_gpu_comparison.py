@@ -13,10 +13,13 @@ import torch.multiprocessing as mp
 import argparse
 import datetime
 import json
+os.environ.setdefault("MPLCONFIGDIR", "/tmp/matplotlib")
 import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
 from pathlib import Path
+import random
+import numpy as np
 
 sys.path.insert(0, '/home/bioinfo202200130116/bioinfo/codebasev5/graphnn')
 
@@ -45,7 +48,7 @@ def parse_args():
                        choices=['true', 'false', 'both'],
                        help='Whether to use KAN: true (only KAN), false (only baseline), both (train both). Default: true')
     parser.add_argument('--use_hypergraph', type=str, default='all',
-                       help='Hypergraph mode (comma-separated): hypergraph, kan_hypergraph, kan_aggregated, mlp, or all. Default: all')
+                       help='Fusion mode (comma-separated): mlp, kan_mlp, hypergraph, mean_hypergraph, kan_hypergraph, kan_aggregated, or all. Default: all')
     parser.add_argument('--kan_type', type=str, default='fourier',
                        choices=['fourier', 'bspline'],
                        help='KAN type (default: fourier)')
@@ -60,9 +63,55 @@ def parse_args():
                        choices=['loewe', 'zip'],
                        help='Regression target score. Default: loewe')
     parser.add_argument('--ablation', type=str, default='',
-                       choices=['', 'kagcn_regression', 'mlp_frontend_tasks'],
+                       choices=[
+                           '', 'kagcn_regression', 'mlp_frontend_tasks',
+                           'kan_placement', 'hgkan_only',
+                           'hgkan_hypergraph_classification_cold_drug',
+                           'mean_hypergraph_only',
+                       ],
                        help='Predefined ablation. mlp_frontend_tasks runs GCN/KAGCN/KAGCN_NEIGHBOR with concat+MLP on classification and Loewe regression for random/cold_drug.')
+    parser.add_argument('--seed', type=int, default=42,
+                       help='Random seed for data split and training initialization. Default: 42')
+    parser.add_argument('--fold', type=int, default=0,
+                       help='Fold index for generated random/cold splits. Default: 0')
+    parser.add_argument('--run_tag', type=str, default='',
+                       help='Optional label appended to the experiment directory name.')
+    parser.add_argument('--prefer_saved_partitions', action='store_true',
+                       help='Use existing partition_<scenario>.pkl files when available.')
+    parser.add_argument('--drug_jk', type=str, default='last',
+                       choices=['last', 'sum', 'multilayer', 'concat_kan'],
+                       help='Drug encoder Jumping Knowledge mode. Default: last')
+    parser.add_argument('--use_drug_readout_kan', action='store_true',
+                       help='Apply a KAN projection after graph pooling to form drug embeddings.')
     return parser.parse_args()
+
+
+def effective_variant_label(variant, use_kan, use_drug_kan, use_hypergraph_kan):
+    """Human-readable KAN placement label used in experiment names and reports."""
+    if variant.get('label'):
+        return variant['label']
+    if use_drug_kan and use_hypergraph_kan:
+        return 'DrugKAN_HgKAN'
+    if use_drug_kan:
+        return 'DrugKAN_only'
+    if use_hypergraph_kan:
+        return 'HgKAN_only'
+    if use_kan:
+        return 'KAGNN'
+    return 'Baseline'
+
+
+def effective_mode_label(hypergraph_mode, use_hypergraph_kan):
+    """Separate graph topology from whether its message functions are true KANLinear."""
+    if hypergraph_mode == 'kan_hypergraph':
+        return 'kan_hypergraph_funcKAN' if use_hypergraph_kan else 'kan_hypergraph_linear'
+    if hypergraph_mode == 'kan_aggregated':
+        return 'kan_aggregated_funcKAN' if use_hypergraph_kan else 'kan_aggregated_linear'
+    if hypergraph_mode == 'kan_mlp':
+        return 'kan_mlp'
+    if hypergraph_mode == 'mean_hypergraph':
+        return 'mean_hypergraph'
+    return hypergraph_mode
 
 
 def create_training_params(args, gnn_type, use_kan, hypergraph_mode, scenario='random'):
@@ -74,12 +123,14 @@ def create_training_params(args, gnn_type, use_kan, hypergraph_mode, scenario='r
         "emb_dim": args.emb_dim,
         "gnn_type": gnn_type,
         "num_layer": args.num_layer,
+        "drug_jk": args.drug_jk,
         "graph_pooling": "mean",
 
         # KAN参数
         "use_kan": use_kan,
         "use_drug_kan": use_kan,
         "use_hypergraph_kan": use_kan,
+        "use_drug_readout_kan": args.use_drug_readout_kan,
         "kan_type": args.kan_type,
         "task": args.task,
         "target_score": args.target_score,
@@ -87,6 +138,7 @@ def create_training_params(args, gnn_type, use_kan, hypergraph_mode, scenario='r
 
         # 超图模式参数
         "hypergraph_mode": hypergraph_mode,
+        "decoder_type": "kan" if hypergraph_mode == "kan_mlp" else "mlp",
         "use_reconstruction": False,
         "unified_dim": 128,
         "hypergraph_hidden": 256,
@@ -106,6 +158,8 @@ def create_training_params(args, gnn_type, use_kan, hypergraph_mode, scenario='r
 
         # 新增：场景和早停参数
         "scenario": scenario,
+        "seed": args.seed,
+        "fold": args.fold,
         "early_stopping_patience": args.early_stopping,
         "enable_realtime_viz": True,  # 启用实时可视化
     }
@@ -119,6 +173,13 @@ def run_single_experiment_wrapper(args_tuple):
     (dataset_path, partition, tp, exp_name, exp_dir, gpu_id, log_file_path) = args_tuple
 
     try:
+        seed = int(tp.get('seed', 42))
+        random.seed(seed)
+        np.random.seed(seed)
+        torch.manual_seed(seed)
+        if torch.cuda.is_available():
+            torch.cuda.manual_seed_all(seed)
+
         # 子进程也需要重定向输出到log文件
         import sys
         log_file = open(log_file_path, 'a', buffering=1)
@@ -131,7 +192,7 @@ def run_single_experiment_wrapper(args_tuple):
         queue = mp.Queue()
 
         hypergraph_mode = tp.get('hypergraph_mode', 'mlp')
-        if hypergraph_mode in ['hypergraph', 'kan_hypergraph', 'kan_aggregated', 'mlp'] or tp.get('task') == 'regression':
+        if hypergraph_mode in ['hypergraph', 'mean_hypergraph', 'kan_hypergraph', 'kan_aggregated', 'mlp', 'kan_mlp'] or tp.get('task') == 'regression':
             from deepadr.train_functions_hypergraph import run_exp_deepdds_hypergraph
             run_exp_deepdds_hypergraph(queue, dataset, gpu_id, tp, exp_dir, partition)
         else:
@@ -159,9 +220,15 @@ def run_single_experiment_wrapper(args_tuple):
                 'use_kan': tp.get('use_kan', False),
                 'use_drug_kan': tp.get('use_drug_kan', tp.get('use_kan', False)),
                 'use_hypergraph_kan': tp.get('use_hypergraph_kan', tp.get('use_kan', False)),
+                'use_drug_readout_kan': tp.get('use_drug_readout_kan', False),
+                'drug_jk': tp.get('drug_jk', 'last'),
                 'hypergraph_mode': tp.get('hypergraph_mode', 'mlp'),
+                'decoder_type': tp.get('decoder_type', 'mlp'),
                 'task': tp.get('task'),
                 'target_score': tp.get('target_score'),
+                'seed': tp.get('seed'),
+                'fold': tp.get('fold'),
+                'scenario': tp.get('scenario'),
             }
         else:
             best_epoch = curves_df['valid_aupr'].idxmax()
@@ -178,8 +245,14 @@ def run_single_experiment_wrapper(args_tuple):
                 'use_kan': tp.get('use_kan', False),
                 'use_drug_kan': tp.get('use_drug_kan', tp.get('use_kan', False)),
                 'use_hypergraph_kan': tp.get('use_hypergraph_kan', tp.get('use_kan', False)),
+                'use_drug_readout_kan': tp.get('use_drug_readout_kan', False),
+                'drug_jk': tp.get('drug_jk', 'last'),
                 'hypergraph_mode': tp.get('hypergraph_mode', 'mlp'),
+                'decoder_type': tp.get('decoder_type', 'mlp'),
                 'task': tp.get('task'),
+                'seed': tp.get('seed'),
+                'fold': tp.get('fold'),
+                'scenario': tp.get('scenario'),
             }
 
         print(f"\n[GPU {gpu_id}] 实验 {exp_name} 完成!")
@@ -566,10 +639,31 @@ def main():
         args.target_score = 'loewe'
         args.scenario = 'random,cold_drug'
         args.use_hypergraph = 'mlp'
+    elif args.ablation == 'kan_placement':
+        args.target_score = 'loewe'
+        args.scenario = 'random,cold_drug'
+        args.use_hypergraph = 'kan_hypergraph,kan_aggregated'
+    elif args.ablation == 'hgkan_only':
+        args.target_score = 'loewe'
+        args.scenario = 'random,cold_drug'
+        args.use_hypergraph = 'kan_hypergraph,kan_aggregated'
+    elif args.ablation == 'hgkan_hypergraph_classification_cold_drug':
+        args.task = 'classification'
+        args.target_score = 'loewe'
+        args.scenario = 'cold_drug'
+        args.use_hypergraph = 'kan_hypergraph'
+    elif args.ablation == 'mean_hypergraph_only':
+        args.target_score = 'loewe'
+        args.scenario = 'cold_drug'
+        args.use_hypergraph = 'mean_hypergraph'
 
-    # 设置日志输出到当前目录
+    # 设置日志输出到当前目录。不同 run_tag 使用独立日志，避免并行实验互相覆盖。
     import sys
-    log_file = open('training_hypergraph_comparison.log', 'w', buffering=1)
+    log_file_path = 'training_hypergraph_comparison.log'
+    if args.run_tag:
+        safe_run_tag = ''.join(c if c.isalnum() or c in '-_.' else '_' for c in args.run_tag)
+        log_file_path = f'training_hypergraph_comparison_{safe_run_tag}.log'
+    log_file = open(log_file_path, 'w', buffering=1)
     sys.stdout = log_file
     sys.stderr = log_file
 
@@ -614,10 +708,81 @@ def main():
             },
         ]
         gnn_types = [v['gnn_type'] for v in ablation_variants]
+    elif args.ablation == 'kan_placement':
+        task_options = ['classification', 'regression']
+        ablation_variants = [
+            {
+                'label': 'NoKAN',
+                'gnn_type': 'gcn',
+                'use_kan': False,
+                'use_drug_kan': False,
+                'use_hypergraph_kan': False,
+            },
+            {
+                'label': 'DrugKAN_only',
+                'gnn_type': 'gcn',
+                'use_kan': True,
+                'use_drug_kan': True,
+                'use_hypergraph_kan': False,
+            },
+            {
+                'label': 'HgKAN_only',
+                'gnn_type': 'gcn',
+                'use_kan': True,
+                'use_drug_kan': False,
+                'use_hypergraph_kan': True,
+            },
+            {
+                'label': 'DrugKAN_HgKAN',
+                'gnn_type': 'gcn',
+                'use_kan': True,
+                'use_drug_kan': True,
+                'use_hypergraph_kan': True,
+            },
+        ]
+        gnn_types = [v['label'] for v in ablation_variants]
+    elif args.ablation == 'hgkan_only':
+        task_options = ['classification', 'regression']
+        ablation_variants = [
+            {
+                'label': 'HgKAN_only',
+                'gnn_type': 'gcn',
+                'use_kan': True,
+                'use_drug_kan': False,
+                'use_hypergraph_kan': True,
+            },
+        ]
+        gnn_types = [v['label'] for v in ablation_variants]
+    elif args.ablation == 'hgkan_hypergraph_classification_cold_drug':
+        task_options = ['classification']
+        ablation_variants = [
+            {
+                'label': 'HgKAN_only',
+                'gnn_type': 'gcn',
+                'use_kan': True,
+                'use_drug_kan': False,
+                'use_hypergraph_kan': True,
+            },
+        ]
+        gnn_types = [v['label'] for v in ablation_variants]
+    elif args.ablation == 'mean_hypergraph_only':
+        task_options = ['classification', 'regression']
+        ablation_variants = [
+            {
+                'label': 'MeanHG_only',
+                'gnn_type': 'gcn',
+                'use_kan': False,
+                'use_drug_kan': False,
+                'use_hypergraph_kan': False,
+            },
+        ]
+        gnn_types = [v['label'] for v in ablation_variants]
     print(f"GNN类型: {gnn_types}")
     print(f"任务类型: {task_options}")
     print(f"KAN类型: {args.kan_type}")
     print(f"训练轮数: {args.epochs}")
+    print(f"随机种子: {args.seed}")
+    print(f"Fold: {args.fold}")
 
     # 数据集路径
     processed_dir = '/home/bioinfo202200130116/bioinfo/codebasev5/graphnn/data/processed'
@@ -631,8 +796,9 @@ def main():
 
     # 创建总实验目录
     time_stamp = datetime.datetime.now().strftime('%Y-%m-%d_%H-%M-%S')
+    run_suffix = f"_{args.run_tag}" if args.run_tag else ""
     main_exp_dir = create_directory(
-        os.path.join(targetdata_dir_exp, f"multi_gpu_comparison_{time_stamp}")
+        os.path.join(targetdata_dir_exp, f"multi_gpu_comparison_{time_stamp}{run_suffix}")
     )
 
     print(f"\n实验目录: {main_exp_dir}")
@@ -664,7 +830,7 @@ def main():
 
     use_hypergraph_options = []
     if args.use_hypergraph == 'all' or args.use_hypergraph == 'both':
-        use_hypergraph_options = ['hypergraph', 'kan_hypergraph', 'kan_aggregated']
+        use_hypergraph_options = ['hypergraph', 'mean_hypergraph', 'kan_hypergraph', 'kan_aggregated']
     else:
         # 支持逗号分隔的多个模式
         use_hypergraph_options = [x.strip() for x in args.use_hypergraph.split(',')]
@@ -674,24 +840,33 @@ def main():
         # 加载该场景的数据分区
         partition_file = os.path.join(targetdata_dir, "partitions", f"partition_{scenario}.pkl")
 
-        if os.path.exists(partition_file):
+        use_saved_partition = args.prefer_saved_partitions and os.path.exists(partition_file)
+        if use_saved_partition:
             print(f"\n加载 {scenario} 场景分区文件...")
             import pickle
             with open(partition_file, 'rb') as f:
                 partition = pickle.load(f)
         else:
-            print(f"\n分区文件不存在，使用默认 random 分区...")
-            fold_partitions = get_stratified_partitions(
-                dataset.data.y,
-                num_folds=5,
-                valid_set_portion=0.1,
-                random_state=42
+            print(f"\n分区文件不存在，按 {scenario} 场景即时生成分区...")
+            partition = get_split_by_scenario(
+                dataset,
+                scenario=scenario,
+                fold=args.fold,
+                n_folds=5,
+                seed=args.seed
             )
-            partition = fold_partitions[0]
+
+        if 'valid' in partition and 'validation' not in partition:
+            partition = dict(partition)
+            partition['validation'] = partition['valid']
 
         print(f"  训练集: {len(partition['train'])}")
-        print(f"  验证集: {len(partition.get('validation', partition.get('valid', [])))}")
+        print(f"  验证集: {len(partition['validation'])}")
         print(f"  测试集: {len(partition['test'])}")
+        if scenario == 'cold_drug' and partition.get('split_strategy'):
+            print(f"  策略: {partition['split_strategy']}")
+            print(f"  Held-out test drugs: {len(partition.get('heldout_test_drugs', []))}")
+            print(f"  Held-out validation drugs: {len(partition.get('heldout_validation_drugs', []))}")
 
         if ablation_variants is not None:
             variant_iter = ablation_variants
@@ -723,20 +898,23 @@ def main():
                     tp['variant_group'] = variant.get('label') or gnn_type.upper()
 
                     # 生成实验名称
-                    if variant.get('label'):
-                        exp_name_parts = [variant['label']]
-                    else:
-                        exp_name_parts = [gnn_type.upper()]
-                        if use_kan:
-                            exp_name_parts.append(f"KAGNN_{args.kan_type}")
-                        else:
-                            exp_name_parts.append("Baseline")
-                    exp_name_parts.append(hypergraph_mode)
+                    variant_label = effective_variant_label(
+                        variant, use_kan, use_drug_kan, use_hypergraph_kan
+                    )
+                    mode_label = effective_mode_label(hypergraph_mode, use_hypergraph_kan)
+                    exp_name_parts = [gnn_type.upper(), variant_label, mode_label]
+                    if use_kan:
+                        exp_name_parts.append(args.kan_type)
                     if task == 'regression':
                         exp_name_parts.append(f"{args.target_score}_regression")
                     else:
                         exp_name_parts.append("classification")
                     exp_name_parts.append(scenario)
+                    exp_name_parts.append(f"seed{args.seed}")
+                    if args.drug_jk != 'last':
+                        exp_name_parts.append(f"jk{args.drug_jk}")
+                    if args.use_drug_readout_kan:
+                        exp_name_parts.append("drugreadoutkan")
 
                     exp_name = "_".join(exp_name_parts)
 
@@ -753,16 +931,20 @@ def main():
                         exp_name,
                         exp_dir,
                         gpu_list[gpu_idx % len(gpu_list)],
-                        'training_hypergraph_comparison.log'  # log文件路径
+                        log_file_path  # log文件路径
                     ))
                     gpu_idx += 1
 
     print(f"\n总共 {len(experiments)} 个实验将在 {len(gpu_list)} 个GPU上运行")
     print("\n实验列表:")
     for i, (_, _, tp, exp_name, _, gpu_id, _) in enumerate(experiments):
-        kan_status = "✓" if tp['use_kan'] else "✗"
+        drug_kan_status = "✓" if tp.get('use_drug_kan') else "✗"
+        hg_kan_status = "✓" if tp.get('use_hypergraph_kan') else "✗"
         hg_mode = tp.get('hypergraph_mode', 'mlp')
-        print(f"  {i+1}. {exp_name:<40} (GPU {gpu_id}) [KAN:{kan_status} HG:{hg_mode}]")
+        print(
+            f"  {i+1}. {exp_name:<40} (GPU {gpu_id}) "
+            f"[DrugKAN:{drug_kan_status} HgKAN:{hg_kan_status} HG:{hg_mode}]"
+        )
 
     # 并行运行所有实验
     print("\n开始并行训练...")

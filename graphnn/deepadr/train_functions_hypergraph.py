@@ -237,9 +237,12 @@ def run_exp_deepdds_hypergraph(queue, used_dataset, gpu_num, tp, exp_dir, partit
         'use_kan': tp.get('use_hypergraph_kan', tp.get('use_kan', True)),
         'kan_type': tp.get('kan_type', 'fourier'),
         'use_drug_kan': tp.get('use_drug_kan', tp.get('use_kan', True)),
+        'use_drug_readout_kan': tp.get('use_drug_readout_kan', False),
         'gnn_type': tp.get('gnn_type', 'gcn'),
         'num_layer': tp.get('num_layer', 5),
+        'drug_jk': tp.get('drug_jk', 'last'),
         'graph_pooling': tp.get('graph_pooling', 'mean'),
+        'decoder_type': tp.get('decoder_type', 'kan' if hypergraph_mode == 'kan_mlp' else 'mlp'),
         'task': task
     }
 
@@ -302,6 +305,22 @@ def run_exp_deepdds_hypergraph(queue, used_dataset, gpu_num, tp, exp_dir, partit
     best_valid_rmse = np.inf
     epochs_without_improvement = 0
     early_stopping_patience = int(tp.get('early_stopping_patience', 0) or 0)
+    os.makedirs(os.path.join(exp_dir, 'modelstates'), exist_ok=True)
+    best_model_path = os.path.join(exp_dir, 'modelstates', 'best_model.pt')
+
+    def save_best_checkpoint(epoch, metric_name, metric_value):
+        simple_hyperparameters = {
+            k: v for k, v in tp.items()
+            if isinstance(v, (str, int, float, bool, list, tuple, dict, type(None)))
+        }
+        torch.save({
+            'epoch': epoch,
+            'model_state_dict': hypergraph_model.state_dict(),
+            'optimizer_state_dict': optimizer.state_dict(),
+            'metric_name': metric_name,
+            'metric_value': float(metric_value),
+            'hyperparameters': simple_hyperparameters,
+        }, best_model_path)
 
     # 训练循环
     for epoch in range(tp["num_epochs"]):
@@ -433,6 +452,7 @@ def run_exp_deepdds_hypergraph(queue, used_dataset, gpu_num, tp, exp_dir, partit
                 best_valid_rmse = perfs['valid'].rmse
                 best_epoch = epoch
                 epochs_without_improvement = 0
+                save_best_checkpoint(epoch, 'valid_rmse', best_valid_rmse)
             else:
                 epochs_without_improvement += 1
         else:
@@ -447,6 +467,7 @@ def run_exp_deepdds_hypergraph(queue, used_dataset, gpu_num, tp, exp_dir, partit
             if perfs['valid'].s_aupr > best_valid_aupr:
                 best_valid_aupr = perfs['valid'].s_aupr
                 epochs_without_improvement = 0
+                save_best_checkpoint(epoch, 'valid_aupr', best_valid_aupr)
             else:
                 epochs_without_improvement += 1
 

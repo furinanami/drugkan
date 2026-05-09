@@ -1,0 +1,1824 @@
+================================================================================
+多GPU并行对比实验
+================================================================================
+
+使用GPU: [4]
+GNN类型: ['HgKAN_only']
+任务类型: ['classification']
+KAN类型: fourier
+训练轮数: 80
+随机种子: 42
+Fold: 0
+path_current_dir /home/bioinfo202200130116/bioinfo/codebasev5/graphnn/deepadr
+path_current_dir /home/bioinfo202200130116/bioinfo/codebasev5/graphnn/deepadr
+
+实验目录: /home/bioinfo202200130116/bioinfo/codebasev5/graphnn/data/processed/DrugComb_loewe_thresh_1/data_v1/experiments/multi_gpu_comparison_2026-05-08_21-28-37_thesis_hgkan_hg_cls_cold_pat30_seed42
+
+加载数据集...
+数据集大小: 160228
+
+分区文件不存在，按 cold_drug 场景即时生成分区...
+/home/bioinfo202200130116/bioinfo/codebasev5/graphnn/deepadr/cold_split.py:31: UserWarning: It is not recommended to directly access the internal storage format `data` of an 'InMemoryDataset'. If you are absolutely certain what you are doing, access the internal storage via `InMemoryDataset._data` instead to suppress this warning. Alternatively, you can access stacked individual attributes of every graph via `dataset.{attr_name}`.
+  drug_ids_a = dataset.data.drug_a_id.cpu().numpy()
+/home/bioinfo202200130116/bioinfo/codebasev5/graphnn/deepadr/cold_split.py:32: UserWarning: It is not recommended to directly access the internal storage format `data` of an 'InMemoryDataset'. If you are absolutely certain what you are doing, access the internal storage via `InMemoryDataset._data` instead to suppress this warning. Alternatively, you can access stacked individual attributes of every graph via `dataset.{attr_name}`.
+  drug_ids_b = dataset.data.drug_b_id.cpu().numpy()
+  训练集: 69674
+  验证集: 2101
+  测试集: 7697
+path_current_dir /home/bioinfo202200130116/bioinfo/codebasev5/graphnn/deepadr
+path_current_dir /home/bioinfo202200130116/bioinfo/codebasev5/graphnn/deepadr
+path_current_dir /home/bioinfo202200130116/bioinfo/codebasev5/graphnn/deepadr
+
+总共 1 个实验将在 1 个GPU上运行
+
+实验列表:
+  1. GCN_HgKAN_only_kan_hypergraph_funcKAN_fourier_classification_cold_drug_seed42 (GPU 4) [DrugKAN:✗ HgKAN:✓ HG:kan_hypergraph]
+
+开始并行训练...
+================================================================================
+
+================================================================================
+所有实验完成!
+================================================================================
+
+生成对比报告和图表...
+
+详细报告已保存到: /home/bioinfo202200130116/bioinfo/codebasev5/graphnn/data/processed/DrugComb_loewe_thresh_1/data_v1/experiments/multi_gpu_comparison_2026-05-08_21-28-37_thesis_hgkan_hg_cls_cold_pat30_seed42/multi_gpu_comparison_report.md
+
+结果保存在: /home/bioinfo202200130116/bioinfo/codebasev5/graphnn/data/processed/DrugComb_loewe_thresh_1/data_v1/experiments/multi_gpu_comparison_2026-05-08_21-28-37_thesis_hgkan_hg_cls_cold_pat30_seed42
+
+生成的文件:
+  - all_results.csv: 所有结果数据
+  - multi_gpu_comparison_report.md: 详细报告
+  - overall_comparison.png: 总体对比图
+p=0.2, inplace=False) Dropout(p=0.2, inplace=False)
+/home/bioinfo202200130116/bioinfo/codebasev5/graphnn/deepadr/train_functions_hypergraph.py:261: UserWarning: It is not recommended to directly access the internal storage format `data` of an 'InMemoryDataset'. If you are absolutely certain what you are doing, access the internal storage via `InMemoryDataset._data` instead to suppress this warning. Alternatively, you can access stacked individual attributes of every graph via `dataset.{attr_name}`.
+  y_weights = compute_class_weights(used_dataset.data.y[partition['train']])
+=====Epoch 0
+Training...
+Evaluating...
+{'Train':  best_epoch_indx:0
+ auc:0.5250035109282567 
+ apur:0.16427218837672522 
+ f1:0.22259125995633053 
+ precision:0.16597871950100898 
+ recall:0.3378138709978531 
+, 'Validation':  best_epoch_indx:0
+ auc:0.4943381133164165 
+ apur:0.17046226013104485 
+ f1:0.20449438202247192 
+ precision:0.16789667896678967 
+ recall:0.2614942528735632 
+, 'Test':  best_epoch_indx:0
+ auc:0.5220839402478009 
+ apur:0.15244296991465808 
+ f1:0.20985135529000293 
+ precision:0.1541095890410959 
+ recall:0.3287671232876712 
+}
+=====Epoch 1
+Training...
+Evaluating...
+{'Train':  best_epoch_indx:1
+ auc:0.5345849163461213 
+ apur:0.16954861206901173 
+ f1:0.2188077070485349 
+ precision:0.17456081832332665 
+ recall:0.29310183888733315 
+, 'Validation':  best_epoch_indx:1
+ auc:0.4655090452491951 
+ apur:0.1504415208323416 
+ f1:0.1325811001410437 
+ precision:0.13019390581717452 
+ recall:0.13505747126436782 
+, 'Test':  best_epoch_indx:1
+ auc:0.5168255364708909 
+ apur:0.14725708097572154 
+ f1:0.19090593543908366 
+ precision:0.1539753639417693 
+ recall:0.2511415525114155 
+}
+=====Epoch 2
+Training...
+Evaluating...
+{'Train':  best_epoch_indx:2
+ auc:0.5499985234683898 
+ apur:0.17485781744308293 
+ f1:0.23710430066843233 
+ precision:0.17902204446983763 
+ recall:0.3509754503873798 
+, 'Validation':  best_epoch_indx:2
+ auc:0.4854830143399492 
+ apur:0.16157946868052042 
+ f1:0.1839080459770115 
+ precision:0.1532567049808429 
+ recall:0.22988505747126436 
+, 'Test':  best_epoch_indx:2
+ auc:0.5676694761100483 
+ apur:0.16493614249609934 
+ f1:0.22145328719723184 
+ precision:0.1689059500959693 
+ recall:0.32146118721461187 
+}
+=====Epoch 3
+Training...
+Evaluating...
+{'Train':  best_epoch_indx:3
+ auc:0.574939066691723 
+ apur:0.18645566878708553 
+ f1:0.225140712945591 
+ precision:0.19668015064862604 
+ recall:0.26323158779053485 
+, 'Validation':  best_epoch_indx:3
+ auc:0.5000491767806913 
+ apur:0.1669999993567914 
+ f1:0.118491921005386 
+ precision:0.15789473684210525 
+ recall:0.09482758620689655 
+, 'Test':  best_epoch_indx:3
+ auc:0.6122889286351583 
+ apur:0.19778829390821856 
+ f1:0.21608980355472404 
+ precision:0.2214765100671141 
+ recall:0.21095890410958903 
+}
+=====Epoch 4
+Training...
+Evaluating...
+{'Train':  best_epoch_indx:4
+ auc:0.6126016454833023 
+ apur:0.20660740587769053 
+ f1:0.2380889066170279 
+ precision:0.22666666666666666 
+ recall:0.2507234201437506 
+, 'Validation':  best_epoch_indx:4
+ auc:0.45020031342001554 
+ apur:0.1450030876986102 
+ f1:0.0694980694980695 
+ precision:0.10588235294117647 
+ recall:0.05172413793103448 
+, 'Test':  best_epoch_indx:4
+ auc:0.6137176502485064 
+ apur:0.18573694728766532 
+ f1:0.1875 
+ precision:0.19796954314720813 
+ recall:0.1780821917808219 
+}
+=====Epoch 5
+Training...
+Evaluating...
+{'Train':  best_epoch_indx:5
+ auc:0.624034276253718 
+ apur:0.21208854605611666 
+ f1:0.27413578893517504 
+ precision:0.22524470065453672 
+ recall:0.35013534957528236 
+, 'Validation':  best_epoch_indx:5
+ auc:0.503921028647114 
+ apur:0.16191554911560452 
+ f1:0.0709812108559499 
+ precision:0.1297709923664122 
+ recall:0.04885057471264368 
+, 'Test':  best_epoch_indx:5
+ auc:0.6616700487883151 
+ apur:0.21483203104221751 
+ f1:0.25925925925925924 
+ precision:0.24043715846994534 
+ recall:0.28127853881278536 
+}
+=====Epoch 6
+Training...
+Evaluating...
+{'Train':  best_epoch_indx:6
+ auc:0.6467550564890852 
+ apur:0.2238608701721198 
+ f1:0.3046483440888394 
+ precision:0.23468254769355001 
+ recall:0.43405208625035 
+, 'Validation':  best_epoch_indx:6
+ auc:0.544421385998387 
+ apur:0.1812213887359333 
+ f1:0.14100185528756956 
+ precision:0.19895287958115182 
+ recall:0.10919540229885058 
+, 'Test':  best_epoch_indx:6
+ auc:0.708885089477521 
+ apur:0.2519218819203272 
+ f1:0.32446226759022967 
+ precision:0.2700242718446602 
+ recall:0.4063926940639269 
+}
+=====Epoch 7
+Training...
+Evaluating...
+{'Train':  best_epoch_indx:7
+ auc:0.6508012502123152 
+ apur:0.22176517652621874 
+ f1:0.2877309682187731 
+ precision:0.23814767235578393 
+ recall:0.3633902734994866 
+, 'Validation':  best_epoch_indx:7
+ auc:0.5187199611831278 
+ apur:0.167719028799337 
+ f1:0.10358565737051793 
+ precision:0.16883116883116883 
+ recall:0.07471264367816093 
+, 'Test':  best_epoch_indx:7
+ auc:0.6966435382110583 
+ apur:0.23450192435150452 
+ f1:0.2642533936651584 
+ precision:0.26188340807174887 
+ recall:0.26666666666666666 
+}
+=====Epoch 8
+Training...
+Evaluating...
+{'Train':  best_epoch_indx:8
+ auc:0.6552051242785328 
+ apur:0.23063679341651697 
+ f1:0.29330507512394505 
+ precision:0.24665817950350097 
+ recall:0.3617100718752917 
+, 'Validation':  best_epoch_indx:8
+ auc:0.5172167909199992 
+ apur:0.1803395612927685 
+ f1:0.1054945054945055 
+ precision:0.22429906542056074 
+ recall:0.06896551724137931 
+, 'Test':  best_epoch_indx:8
+ auc:0.6613350181693938 
+ apur:0.210386842537865 
+ f1:0.22119815668202766 
+ precision:0.22325581395348837 
+ recall:0.2191780821917808 
+}
+=====Epoch 9
+Training...
+Evaluating...
+{'Train':  best_epoch_indx:9
+ auc:0.6645470708295514 
+ apur:0.236301221280275 
+ f1:0.32332608483982994 
+ precision:0.24783560553288886 
+ recall:0.46494912722860077 
+, 'Validation':  best_epoch_indx:9
+ auc:0.5522552471624997 
+ apur:0.18337163514627636 
+ f1:0.09484536082474226 
+ precision:0.1678832116788321 
+ recall:0.06609195402298851 
+, 'Test':  best_epoch_indx:9
+ auc:0.6858535326917676 
+ apur:0.22459811012508424 
+ f1:0.28461833525124663 
+ precision:0.24537037037037038 
+ recall:0.33881278538812787 
+}
+=====Epoch 10
+Training...
+Evaluating...
+{'Train':  best_epoch_indx:10
+ auc:0.6615855393010848 
+ apur:0.23683402664512895 
+ f1:0.30649012372476664 
+ precision:0.2502215133794081 
+ recall:0.39540744889386725 
+, 'Validation':  best_epoch_indx:10
+ auc:0.5174938201178931 
+ apur:0.2007822807133018 
+ f1:0.1341991341991342 
+ precision:0.2719298245614035 
+ recall:0.08908045977011494 
+, 'Test':  best_epoch_indx:10
+ auc:0.6808077391796314 
+ apur:0.21530080133105256 
+ f1:0.24155844155844156 
+ precision:0.22962962962962963 
+ recall:0.2547945205479452 
+}
+=====Epoch 11
+Training...
+Evaluating...
+{'Train':  best_epoch_indx:11
+ auc:0.6660483812254312 
+ apur:0.2405934349245293 
+ f1:0.31870761866773034 
+ precision:0.24748335140157968 
+ recall:0.44749369924390925 
+, 'Validation':  best_epoch_indx:11
+ auc:0.48754679990295785 
+ apur:0.17930347745343836 
+ f1:0.16225749559082892 
+ precision:0.2100456621004566 
+ recall:0.13218390804597702 
+, 'Test':  best_epoch_indx:11
+ auc:0.6715152734953708 
+ apur:0.20921735230677976 
+ f1:0.2745644599303136 
+ precision:0.2219718309859155 
+ recall:0.3598173515981735 
+}
+=====Epoch 12
+Training...
+Evaluating...
+{'Train':  best_epoch_indx:12
+ auc:0.6672441858086884 
+ apur:0.23995092172418717 
+ f1:0.3204242216900445 
+ precision:0.252902738024518 
+ recall:0.43713245589470734 
+, 'Validation':  best_epoch_indx:12
+ auc:0.5084682416350297 
+ apur:0.1727563477724636 
+ f1:0.1383177570093458 
+ precision:0.19786096256684493 
+ recall:0.10632183908045977 
+, 'Test':  best_epoch_indx:12
+ auc:0.6963656370907391 
+ apur:0.22983100900170356 
+ f1:0.31632329635499207 
+ precision:0.24223300970873787 
+ recall:0.4557077625570776 
+}
+=====Epoch 13
+Training...
+Evaluating...
+{'Train':  best_epoch_indx:13
+ auc:0.6720913858588593 
+ apur:0.25013433979779287 
+ f1:0.3349162261446107 
+ precision:0.24624505928853754 
+ recall:0.5233828059367124 
+, 'Validation':  best_epoch_indx:13
+ auc:0.5069470398856476 
+ apur:0.183639176564461 
+ f1:0.15946843853820597 
+ precision:0.1889763779527559 
+ recall:0.13793103448275862 
+, 'Test':  best_epoch_indx:13
+ auc:0.6989451791971162 
+ apur:0.2214901130018907 
+ f1:0.32131147540983607 
+ precision:0.23849557522123893 
+ recall:0.4922374429223744 
+}
+=====Epoch 14
+Training...
+Evaluating...
+{'Train':  best_epoch_indx:14
+ auc:0.669210023830427 
+ apur:0.24630066757070623 
+ f1:0.3236486712911766 
+ precision:0.25245713090757005 
+ recall:0.4507607579576216 
+, 'Validation':  best_epoch_indx:14
+ auc:0.5019785458098104 
+ apur:0.17625005555012685 
+ f1:0.14754098360655737 
+ precision:0.1717557251908397 
+ recall:0.12931034482758622 
+, 'Test':  best_epoch_indx:14
+ auc:0.7039652436856688 
+ apur:0.24193434087440185 
+ f1:0.3193941389529141 
+ precision:0.24974253347064881 
+ recall:0.4429223744292237 
+}
+=====Epoch 15
+Training...
+Evaluating...
+{'Train':  best_epoch_indx:15
+ auc:0.6718859007550414 
+ apur:0.2448628574920384 
+ f1:0.33205704121318097 
+ precision:0.24523512646954043 
+ recall:0.514048352468963 
+, 'Validation':  best_epoch_indx:15
+ auc:0.53733992957885 
+ apur:0.20136321290211118 
+ f1:0.22514619883040934 
+ precision:0.22916666666666666 
+ recall:0.22126436781609196 
+, 'Test':  best_epoch_indx:15
+ auc:0.6967527482332045 
+ apur:0.23679777188503637 
+ f1:0.32771644392794885 
+ precision:0.24030677460587985 
+ recall:0.5150684931506849 
+}
+=====Epoch 16
+Training...
+Evaluating...
+{'Train':  best_epoch_indx:16
+ auc:0.6861486174652645 
+ apur:0.2526553126777763 
+ f1:0.3236767752872481 
+ precision:0.2713491662455786 
+ recall:0.40100812097451694 
+, 'Validation':  best_epoch_indx:16
+ auc:0.5208362019788737 
+ apur:0.19653597782748627 
+ f1:0.19237749546279492 
+ precision:0.26108374384236455 
+ recall:0.15229885057471265 
+, 'Test':  best_epoch_indx:16
+ auc:0.6872873032801738 
+ apur:0.23565087984249045 
+ f1:0.2879746835443038 
+ precision:0.2540125610607118 
+ recall:0.3324200913242009 
+}
+=====Epoch 17
+Training...
+Evaluating...
+{'Train':  best_epoch_indx:17
+ auc:0.6912355368116492 
+ apur:0.25782046971467726 
+ f1:0.3438423325432644 
+ precision:0.263616449268147 
+ recall:0.49425931111733407 
+, 'Validation':  best_epoch_indx:17
+ auc:0.489395846856948 
+ apur:0.16562145730097227 
+ f1:0.1206581352833638 
+ precision:0.1658291457286432 
+ recall:0.09482758620689655 
+, 'Test':  best_epoch_indx:17
+ auc:0.7233023340097577 
+ apur:0.2542840211150603 
+ f1:0.34407915735716565 
+ precision:0.2644749754661433 
+ recall:0.4922374429223744 
+}
+=====Epoch 18
+Training...
+Evaluating...
+{'Train':  best_epoch_indx:18
+ auc:0.6971765647454884 
+ apur:0.2642107248291993 
+ f1:0.32648079636904537 
+ precision:0.2760221849606604 
+ recall:0.399514608419677 
+, 'Validation':  best_epoch_indx:18
+ auc:0.46373212424021876 
+ apur:0.17727810381795722 
+ f1:0.13852813852813853 
+ precision:0.2807017543859649 
+ recall:0.09195402298850575 
+, 'Test':  best_epoch_indx:18
+ auc:0.7106387437596744 
+ apur:0.24522235609458198 
+ f1:0.3001834862385321 
+ precision:0.250920245398773 
+ recall:0.3735159817351598 
+}
+=====Epoch 19
+Training...
+Evaluating...
+{'Train':  best_epoch_indx:19
+ auc:0.6973683769117077 
+ apur:0.26237914042642463 
+ f1:0.3422922676422993 
+ precision:0.27465703155874216 
+ recall:0.45412116120601137 
+, 'Validation':  best_epoch_indx:19
+ auc:0.46948908603313866 
+ apur:0.1528387216047838 
+ f1:0.10634648370497427 
+ precision:0.13191489361702127 
+ recall:0.08908045977011494 
+, 'Test':  best_epoch_indx:19
+ auc:0.7301160295966768 
+ apur:0.26804151778529206 
+ f1:0.34962771123340886 
+ precision:0.2708124373119358 
+ recall:0.4931506849315068 
+}
+=====Epoch 20
+Training...
+Evaluating...
+{'Train':  best_epoch_indx:20
+ auc:0.7040424058611914 
+ apur:0.2660556877118523 
+ f1:0.33793571751923945 
+ precision:0.2835707502374169 
+ recall:0.4180901708204985 
+, 'Validation':  best_epoch_indx:20
+ auc:0.4996082249804932 
+ apur:0.1690980304182014 
+ f1:0.09109730848861283 
+ precision:0.16296296296296298 
+ recall:0.06321839080459771 
+, 'Test':  best_epoch_indx:20
+ auc:0.721798361918832 
+ apur:0.27312728613952103 
+ f1:0.33694512408248867 
+ precision:0.2729331823329558 
+ recall:0.44018264840182647 
+}
+=====Epoch 21
+Training...
+Evaluating...
+{'Train':  best_epoch_indx:21
+ auc:0.7086708808634542 
+ apur:0.26859181907279944 
+ f1:0.344588428545355 
+ precision:0.28293969548015824 
+ recall:0.4405862036777747 
+, 'Validation':  best_epoch_indx:21
+ auc:0.46058317104995705 
+ apur:0.15276710366777763 
+ f1:0.047109207708779445 
+ precision:0.09243697478991597 
+ recall:0.031609195402298854 
+, 'Test':  best_epoch_indx:21
+ auc:0.7433870184626493 
+ apur:0.2901289378421425 
+ f1:0.35778443113772457 
+ precision:0.30310716550412176 
+ recall:0.4365296803652968 
+}
+=====Epoch 22
+Training...
+Evaluating...
+{'Train':  best_epoch_indx:22
+ auc:0.7094624199100339 
+ apur:0.2671170610074418 
+ f1:0.3560603602141814 
+ precision:0.27290816834145853 
+ recall:0.5120881172407356 
+, 'Validation':  best_epoch_indx:22
+ auc:0.4674449711824066 
+ apur:0.18343607293635006 
+ f1:0.15 
+ precision:0.2727272727272727 
+ recall:0.10344827586206896 
+, 'Test':  best_epoch_indx:22
+ auc:0.7039689785439309 
+ apur:0.231987108210563 
+ f1:0.31643625192012287 
+ precision:0.23842592592592593 
+ recall:0.4703196347031963 
+}
+=====Epoch 23
+Training...
+Evaluating...
+{'Train':  best_epoch_indx:23
+ auc:0.698669946689855 
+ apur:0.2659491090267706 
+ f1:0.351286971481506 
+ precision:0.2720750269051402 
+ recall:0.495566134602819 
+, 'Validation':  best_epoch_indx:23
+ auc:0.49266938122496085 
+ apur:0.1629704787707573 
+ f1:0.13945578231292516 
+ precision:0.17083333333333334 
+ recall:0.11781609195402298 
+, 'Test':  best_epoch_indx:23
+ auc:0.7353935918131906 
+ apur:0.26824252793224834 
+ f1:0.37485029940119763 
+ precision:0.27884187082405343 
+ recall:0.5716894977168949 
+}
+=====Epoch 24
+Training...
+Evaluating...
+{'Train':  best_epoch_indx:24
+ auc:0.7093017967332382 
+ apur:0.2697504214088585 
+ f1:0.3271313983296122 
+ precision:0.29362428560825354 
+ recall:0.3692709791841688 
+, 'Validation':  best_epoch_indx:24
+ auc:0.5141530774829357 
+ apur:0.17074391128792174 
+ f1:0.010582010582010581 
+ precision:0.06666666666666667 
+ recall:0.005747126436781609 
+, 'Test':  best_epoch_indx:24
+ auc:0.7311474729534014 
+ apur:0.2689540551875209 
+ f1:0.33373542420587055 
+ precision:0.29813218390804597 
+ recall:0.3789954337899543 
+}
+=====Epoch 25
+Training...
+Evaluating...
+{'Train':  best_epoch_indx:25
+ auc:0.710748526199732 
+ apur:0.2748462309416474 
+ f1:0.35314443676572216 
+ precision:0.2803533219948428 
+ recall:0.4769905722019976 
+, 'Validation':  best_epoch_indx:25
+ auc:0.5171610572352159 
+ apur:0.17630309873054678 
+ f1:0.09166666666666666 
+ precision:0.16666666666666666 
+ recall:0.06321839080459771 
+, 'Test':  best_epoch_indx:25
+ auc:0.7243806705868846 
+ apur:0.266697108254833 
+ f1:0.3501006036217304 
+ precision:0.2766295707472178 
+ recall:0.4767123287671233 
+}
+=====Epoch 26
+Training...
+Evaluating...
+{'Train':  best_epoch_indx:26
+ auc:0.7149600704073091 
+ apur:0.27207564553522456 
+ f1:0.33172329103561193 
+ precision:0.2953998687759714 
+ recall:0.37823205451320824 
+, 'Validation':  best_epoch_indx:26
+ auc:0.4859321622702625 
+ apur:0.1651838781042828 
+ f1:0.015463917525773196 
+ precision:0.075 
+ recall:0.008620689655172414 
+, 'Test':  best_epoch_indx:26
+ auc:0.7458719441597192 
+ apur:0.29541450874203995 
+ f1:0.37074696910441923 
+ precision:0.32421340629274964 
+ recall:0.4328767123287671 
+}
+=====Epoch 27
+Training...
+Evaluating...
+{'Train':  best_epoch_indx:27
+ auc:0.7154299783930858 
+ apur:0.2747799470722185 
+ f1:0.3158810984897941 
+ precision:0.2959067188519243 
+ recall:0.338747316344628 
+, 'Validation':  best_epoch_indx:27
+ auc:0.5104549835749552 
+ apur:0.17483540806350595 
+ f1:0.016172506738544475 
+ precision:0.13043478260869565 
+ recall:0.008620689655172414 
+, 'Test':  best_epoch_indx:27
+ auc:0.7413087081678583 
+ apur:0.28187098166419233 
+ f1:0.2961876832844575 
+ precision:0.3186119873817035 
+ recall:0.27671232876712326 
+}
+=====Epoch 28
+Training...
+Evaluating...
+{'Train':  best_epoch_indx:28
+ auc:0.7176188484420338 
+ apur:0.2789083667193823 
+ f1:0.3451221858764672 
+ precision:0.2936092194866422 
+ recall:0.4185568934938859 
+, 'Validation':  best_epoch_indx:28
+ auc:0.5166709286543266 
+ apur:0.17252764249589242 
+ f1:0.02512562814070352 
+ precision:0.1 
+ recall:0.014367816091954023 
+, 'Test':  best_epoch_indx:28
+ auc:0.7333733793135885 
+ apur:0.27237353256882635 
+ f1:0.34713144517066086 
+ precision:0.28812537673297167 
+ recall:0.4365296803652968 
+}
+=====Epoch 29
+Training...
+Evaluating...
+{'Train':  best_epoch_indx:29
+ auc:0.7117458084047611 
+ apur:0.2757585274498575 
+ f1:0.3271564943198998 
+ precision:0.3044701720533848 
+ recall:0.3534957528236722 
+, 'Validation':  best_epoch_indx:29
+ auc:0.5143825691261614 
+ apur:0.1734125294878673 
+ f1:0.015665796344647518 
+ precision:0.08571428571428572 
+ recall:0.008620689655172414 
+, 'Test':  best_epoch_indx:29
+ auc:0.7360985808921884 
+ apur:0.2788901712333977 
+ f1:0.34568896051571313 
+ precision:0.30930064888248016 
+ recall:0.3917808219178082 
+}
+=====Epoch 30
+Training...
+Evaluating...
+{'Train':  best_epoch_indx:30
+ auc:0.7134223711420147 
+ apur:0.27299169444777227 
+ f1:0.32902634211403803 
+ precision:0.29723623766849916 
+ recall:0.36843087837207134 
+, 'Validation':  best_epoch_indx:30
+ auc:0.48236356721810225 
+ apur:0.16732086608151386 
+ f1:0.02077922077922078 
+ precision:0.10810810810810811 
+ recall:0.011494252873563218 
+, 'Test':  best_epoch_indx:30
+ auc:0.7514819087615625 
+ apur:0.2928417378970428 
+ f1:0.37801204819277107 
+ precision:0.3215887251761691 
+ recall:0.45844748858447487 
+}
+=====Epoch 31
+Training...
+Evaluating...
+{'Train':  best_epoch_indx:31
+ auc:0.7231170269222523 
+ apur:0.28239404324991785 
+ f1:0.3350369588173178 
+ precision:0.30597130072519674 
+ recall:0.3702044245309437 
+, 'Validation':  best_epoch_indx:31
+ auc:0.5232311111985365 
+ apur:0.18632316787084172 
+ f1:0.005479452054794521 
+ precision:0.058823529411764705 
+ recall:0.0028735632183908046 
+, 'Test':  best_epoch_indx:31
+ auc:0.7486095952658596 
+ apur:0.2781787975735639 
+ f1:0.3799036476256022 
+ precision:0.30480397570403095 
+ recall:0.5041095890410959 
+}
+=====Epoch 32
+Training...
+Evaluating...
+{'Train':  best_epoch_indx:32
+ auc:0.7332849485647961 
+ apur:0.2885765124471486 
+ f1:0.3373414321722243 
+ precision:0.3026393831553974 
+ recall:0.3810323905535331 
+, 'Validation':  best_epoch_indx:32
+ auc:0.5006450354400666 
+ apur:0.18314816846139026 
+ f1:0.03617571059431524 
+ precision:0.1794871794871795 
+ recall:0.020114942528735632 
+, 'Test':  best_epoch_indx:32
+ auc:0.7550600413047659 
+ apur:0.28955229727307635 
+ f1:0.3768506056527591 
+ precision:0.2983484283431007 
+ recall:0.5114155251141552 
+}
+=====Epoch 33
+Training...
+Evaluating...
+{'Train':  best_epoch_indx:33
+ auc:0.7283502181249522 
+ apur:0.2927610126761882 
+ f1:0.3503265891349371 
+ precision:0.30552275095519277 
+ recall:0.4105292635116214 
+, 'Validation':  best_epoch_indx:33
+ auc:0.4977550799614454 
+ apur:0.19552693472418262 
+ f1:0.08521303258145363 
+ precision:0.3333333333333333 
+ recall:0.04885057471264368 
+, 'Test':  best_epoch_indx:33
+ auc:0.7411576539003679 
+ apur:0.2894683434540367 
+ f1:0.37202797202797205 
+ precision:0.30141643059490086 
+ recall:0.4858447488584475 
+}
+=====Epoch 34
+Training...
+Evaluating...
+{'Train':  best_epoch_indx:34
+ auc:0.7210156389766812 
+ apur:0.2846759649700937 
+ f1:0.34871716437884753 
+ precision:0.29533678756476683 
+ recall:0.4256510781293755 
+, 'Validation':  best_epoch_indx:34
+ auc:0.5235491210470065 
+ apur:0.1832827099028939 
+ f1:0.06074766355140187 
+ precision:0.1625 
+ recall:0.03735632183908046 
+, 'Test':  best_epoch_indx:34
+ auc:0.7539014052750032 
+ apur:0.27446879300903826 
+ f1:0.3972684085510689 
+ precision:0.2943246810382754 
+ recall:0.6109589041095891 
+}
+=====Epoch 35
+Training...
+Evaluating...
+{'Train':  best_epoch_indx:35
+ auc:0.7376500914804461 
+ apur:0.29626458808171585 
+ f1:0.3707897377096173 
+ precision:0.30090142483280025 
+ recall:0.48296462242135724 
+, 'Validation':  best_epoch_indx:35
+ auc:0.51244664319295 
+ apur:0.16778364044910532 
+ f1:0.10569105691056911 
+ precision:0.18055555555555555 
+ recall:0.07471264367816093 
+, 'Test':  best_epoch_indx:35
+ auc:0.7374493546303251 
+ apur:0.2689831927135068 
+ f1:0.39168801594079133 
+ precision:0.28453267162944584 
+ recall:0.628310502283105 
+}
+=====Epoch 36
+Training...
+Evaluating...
+{'Train':  best_epoch_indx:36
+ auc:0.7568236187076075 
+ apur:0.31576883035931863 
+ f1:0.3944026262559273 
+ precision:0.3058527052046904 
+ recall:0.5551199477270605 
+, 'Validation':  best_epoch_indx:36
+ auc:0.5368588167410875 
+ apur:0.189514086675172 
+ f1:0.08501118568232663 
+ precision:0.1919191919191919 
+ recall:0.05459770114942529 
+, 'Test':  best_epoch_indx:36
+ auc:0.738315219270762 
+ apur:0.2705480386637477 
+ f1:0.39946380697050937 
+ precision:0.2827324478178368 
+ recall:0.680365296803653 
+}
+=====Epoch 37
+Training...
+Evaluating...
+{'Train':  best_epoch_indx:37
+ auc:0.7635606501914742 
+ apur:0.3178789332777237 
+ f1:0.37797547487376776 
+ precision:0.3311565199073099 
+ recall:0.4402128255390647 
+, 'Validation':  best_epoch_indx:37
+ auc:0.5318829461481467 
+ apur:0.17698083755260685 
+ f1:0.021739130434782608 
+ precision:0.2 
+ recall:0.011494252873563218 
+, 'Test':  best_epoch_indx:37
+ auc:0.7391974757891272 
+ apur:0.276852240297453 
+ f1:0.3549618320610687 
+ precision:0.30491803278688523 
+ recall:0.4246575342465753 
+}
+=====Epoch 38
+Training...
+Evaluating...
+{'Train':  best_epoch_indx:38
+ auc:0.7672170516016158 
+ apur:0.32629943769006053 
+ f1:0.4010076639227931 
+ precision:0.32345028905042644 
+ recall:0.5274899654625221 
+, 'Validation':  best_epoch_indx:38
+ auc:0.5152988964730413 
+ apur:0.16971122709020212 
+ f1:0.05432098765432099 
+ precision:0.19298245614035087 
+ recall:0.031609195402298854 
+, 'Test':  best_epoch_indx:38
+ auc:0.736103975687456 
+ apur:0.2583680610636955 
+ f1:0.38480871265009775 
+ precision:0.27715205148833466 
+ recall:0.6292237442922375 
+}
+=====Epoch 39
+Training...
+Evaluating...
+{'Train':  best_epoch_indx:39
+ auc:0.7728443365556552 
+ apur:0.3393926676134223 
+ f1:0.3823214432819837 
+ precision:0.34213048286030223 
+ recall:0.43321198543825257 
+, 'Validation':  best_epoch_indx:39
+ auc:0.4945839972198727 
+ apur:0.16428589731308144 
+ f1:0.027247956403269755 
+ precision:0.2631578947368421 
+ recall:0.014367816091954023 
+, 'Test':  best_epoch_indx:39
+ auc:0.7211905483186913 
+ apur:0.23511654603799917 
+ f1:0.3073376872839032 
+ precision:0.26525198938992045 
+ recall:0.365296803652968 
+}
+=====Epoch 40
+Training...
+Evaluating...
+{'Train':  best_epoch_indx:40
+ auc:0.7625480675631925 
+ apur:0.3271387570308337 
+ f1:0.3638088666551665 
+ precision:0.33811623246492983 
+ recall:0.39372724726967234 
+, 'Validation':  best_epoch_indx:40
+ auc:0.4830266341444224 
+ apur:0.1609355701678185 
+ f1:0.02247191011235955 
+ precision:0.5 
+ recall:0.011494252873563218 
+, 'Test':  best_epoch_indx:40
+ auc:0.7213324729326522 
+ apur:0.239662890383719 
+ f1:0.31507936507936507 
+ precision:0.2785964912280702 
+ recall:0.36255707762557077 
+}
+=====Epoch 41
+Training...
+Evaluating...
+{'Train':  best_epoch_indx:41
+ auc:0.7660223671021138 
+ apur:0.3323619473154385 
+ f1:0.40094010502735855 
+ precision:0.3304879525366267 
+ recall:0.5095678148044432 
+, 'Validation':  best_epoch_indx:41
+ auc:0.5200149497413301 
+ apur:0.1761427103763173 
+ f1:0.04774535809018567 
+ precision:0.3103448275862069 
+ recall:0.02586206896551724 
+, 'Test':  best_epoch_indx:41
+ auc:0.7025702049607216 
+ apur:0.21832861858763603 
+ f1:0.3804519180241724 
+ precision:0.26706012541497604 
+ recall:0.6611872146118721 
+}
+=====Epoch 42
+Training...
+Evaluating...
+{'Train':  best_epoch_indx:42
+ auc:0.7849451356775501 
+ apur:0.3651069907279294 
+ f1:0.4330989188016977 
+ precision:0.3241213020495224 
+ recall:0.6524782973956875 
+, 'Validation':  best_epoch_indx:42
+ auc:0.5602325406036286 
+ apur:0.21559318300209301 
+ f1:0.08163265306122448 
+ precision:0.36363636363636365 
+ recall:0.04597701149425287 
+, 'Test':  best_epoch_indx:42
+ auc:0.7156499552508648 
+ apur:0.22261920315727163 
+ f1:0.39905882352941174 
+ precision:0.2687797147385103 
+ recall:0.7744292237442922 
+}
+=====Epoch 43
+Training...
+Evaluating...
+{'Train':  best_epoch_indx:43
+ auc:0.7855266602074167 
+ apur:0.3707494718815258 
+ f1:0.42092466384232824 
+ precision:0.34767526777020447 
+ recall:0.5332773266125268 
+, 'Validation':  best_epoch_indx:43
+ auc:0.5468556366426027 
+ apur:0.2085638018813175 
+ f1:0.1115702479338843 
+ precision:0.19852941176470587 
+ recall:0.07758620689655173 
+, 'Test':  best_epoch_indx:43
+ auc:0.6881699056187485 
+ apur:0.20806521416033336 
+ f1:0.3556543484301195 
+ precision:0.25559105431309903 
+ recall:0.5844748858447488 
+}
+=====Epoch 44
+Training...
+Evaluating...
+{'Train':  best_epoch_indx:44
+ auc:0.7757806198922825 
+ apur:0.35381202031349546 
+ f1:0.39425597683609187 
+ precision:0.3393963891134465 
+ recall:0.47026976570521795 
+, 'Validation':  best_epoch_indx:44
+ auc:0.53201408422999 
+ apur:0.20890473669650655 
+ f1:0.14012738853503184 
+ precision:0.2682926829268293 
+ recall:0.09482758620689655 
+, 'Test':  best_epoch_indx:44
+ auc:0.6449739874038447 
+ apur:0.20580829207850587 
+ f1:0.3064950613588746 
+ precision:0.22796081923419412 
+ recall:0.46757990867579907 
+}
+=====Epoch 45
+Training...
+Evaluating...
+{'Train':  best_epoch_indx:45
+ auc:0.7822709495648796 
+ apur:0.35905040776496483 
+ f1:0.38679539084397385 
+ precision:0.3695171710302618 
+ recall:0.40576869224306916 
+, 'Validation':  best_epoch_indx:45
+ auc:0.5789861059202286 
+ apur:0.25229165752805693 
+ f1:0.17551963048498845 
+ precision:0.4470588235294118 
+ recall:0.10919540229885058 
+, 'Test':  best_epoch_indx:45
+ auc:0.6441466471347412 
+ apur:0.22173286864907304 
+ f1:0.29428989751098095 
+ precision:0.24557116676847893 
+ recall:0.36712328767123287 
+}
+=====Epoch 46
+Training...
+Evaluating...
+{'Train':  best_epoch_indx:46
+ auc:0.7966439379271083 
+ apur:0.38488218759442017 
+ f1:0.4304181411135986 
+ precision:0.35098050762617045 
+ recall:0.556333426677868 
+, 'Validation':  best_epoch_indx:46
+ auc:0.5705563860967406 
+ apur:0.2323502583801969 
+ f1:0.1346153846153846 
+ precision:0.4117647058823529 
+ recall:0.08045977011494253 
+, 'Test':  best_epoch_indx:46
+ auc:0.7181265812629077 
+ apur:0.2405446921389166 
+ f1:0.36633663366336633 
+ precision:0.2689183411714408 
+ recall:0.5744292237442923 
+}
+=====Epoch 47
+Training...
+Evaluating...
+{'Train':  best_epoch_indx:47
+ auc:0.8032511639732278 
+ apur:0.4008538046634941 
+ f1:0.44356239146613746 
+ precision:0.357518281535649 
+ recall:0.5841500980117614 
+, 'Validation':  best_epoch_indx:47
+ auc:0.6160375317190234 
+ apur:0.2849483414924465 
+ f1:0.252 
+ precision:0.4144736842105263 
+ recall:0.1810344827586207 
+, 'Test':  best_epoch_indx:47
+ auc:0.6856580751093829 
+ apur:0.22240962403337564 
+ f1:0.3448844884488449 
+ precision:0.24675324675324675 
+ recall:0.5726027397260274 
+}
+=====Epoch 48
+Training...
+Evaluating...
+{'Train':  best_epoch_indx:48
+ auc:0.8117234015052402 
+ apur:0.415878036900061 
+ f1:0.4537595350526698 
+ precision:0.3714098828566332 
+ recall:0.5830299635956315 
+, 'Validation':  best_epoch_indx:48
+ auc:0.5817711509333753 
+ apur:0.27353967301173887 
+ f1:0.14742014742014742 
+ precision:0.5084745762711864 
+ recall:0.08620689655172414 
+, 'Test':  best_epoch_indx:48
+ auc:0.705864626604087 
+ apur:0.22504637200579947 
+ f1:0.35541654819448393 
+ precision:0.2580511973575557 
+ recall:0.5707762557077626 
+}
+=====Epoch 49
+Training...
+Evaluating...
+{'Train':  best_epoch_indx:49
+ auc:0.8035077003573405 
+ apur:0.3976288958243188 
+ f1:0.42047516563278053 
+ precision:0.3837030191004313 
+ recall:0.4650424717632783 
+, 'Validation':  best_epoch_indx:49
+ auc:0.5944899056461501 
+ apur:0.29179780525180976 
+ f1:0.05390835579514825 
+ precision:0.43478260869565216 
+ recall:0.028735632183908046 
+, 'Test':  best_epoch_indx:49
+ auc:0.6939723537491752 
+ apur:0.21772033563531246 
+ f1:0.3149764942914708 
+ precision:0.24907063197026022 
+ recall:0.428310502283105 
+}
+=====Epoch 50
+Training...
+Evaluating...
+{'Train':  best_epoch_indx:50
+ auc:0.8086518049267896 
+ apur:0.41257983991282227 
+ f1:0.45428208027133976 
+ precision:0.3654709794781422 
+ recall:0.600112013441613 
+, 'Validation':  best_epoch_indx:50
+ auc:0.5869978231078414 
+ apur:0.25490284513188477 
+ f1:0.1610738255033557 
+ precision:0.36363636363636365 
+ recall:0.10344827586206896 
+, 'Test':  best_epoch_indx:50
+ auc:0.7049273155083764 
+ apur:0.23084389446057424 
+ f1:0.35792682926829267 
+ precision:0.26864988558352404 
+ recall:0.5360730593607306 
+}
+=====Epoch 51
+Training...
+Evaluating...
+{'Train':  best_epoch_indx:51
+ auc:0.8132619620080794 
+ apur:0.43150722072260794 
+ f1:0.46872875594833446 
+ precision:0.36857860693857913 
+ recall:0.6436105666013255 
+, 'Validation':  best_epoch_indx:51
+ auc:0.5877199021709909 
+ apur:0.28539138081517634 
+ f1:0.25117739403453687 
+ precision:0.2768166089965398 
+ recall:0.22988505747126436 
+, 'Test':  best_epoch_indx:51
+ auc:0.6906100821807146 
+ apur:0.21562928177880664 
+ f1:0.34610233056522904 
+ precision:0.244882486732373 
+ recall:0.5899543378995433 
+}
+=====Epoch 52
+Training...
+Evaluating...
+{'Train':  best_epoch_indx:52
+ auc:0.8011725228310393 
+ apur:0.41997130422157136 
+ f1:0.45510140405616223 
+ precision:0.34180062801705957 
+ recall:0.6807616914029684 
+, 'Validation':  best_epoch_indx:52
+ auc:0.5468343267043033 
+ apur:0.20484032340076447 
+ f1:0.16715542521994134 
+ precision:0.17065868263473055 
+ recall:0.16379310344827586 
+, 'Test':  best_epoch_indx:52
+ auc:0.6995334885374433 
+ apur:0.21484376487149934 
+ f1:0.3641184268669907 
+ precision:0.2401632177207811 
+ recall:0.7525114155251141 
+}
+=====Epoch 53
+Training...
+Evaluating...
+{'Train':  best_epoch_indx:53
+ auc:0.8111028980606961 
+ apur:0.41565616437513536 
+ f1:0.46013473739289684 
+ precision:0.3541404480241631 
+ recall:0.6566788014561747 
+, 'Validation':  best_epoch_indx:53
+ auc:0.5921884323098006 
+ apur:0.25486931244953515 
+ f1:0.15201900237529692 
+ precision:0.4383561643835616 
+ recall:0.09195402298850575 
+, 'Test':  best_epoch_indx:53
+ auc:0.7002863391334299 
+ apur:0.21769862000551293 
+ f1:0.357926221335992 
+ precision:0.24614329790881043 
+ recall:0.6557077625570776 
+}
+=====Epoch 54
+Training...
+Evaluating...
+{'Train':  best_epoch_indx:54
+ auc:0.8248594390272577 
+ apur:0.44277171361059586 
+ f1:0.4750873866935245 
+ precision:0.34797136038186155 
+ recall:0.7485298235788295 
+, 'Validation':  best_epoch_indx:54
+ auc:0.5674697234953544 
+ apur:0.2507716504683282 
+ f1:0.23668639053254437 
+ precision:0.37735849056603776 
+ recall:0.1724137931034483 
+, 'Test':  best_epoch_indx:54
+ auc:0.6526567983411696 
+ apur:0.1937554673331101 
+ f1:0.3169642857142857 
+ precision:0.20375684842160188 
+ recall:0.7132420091324201 
+}
+=====Epoch 55
+Training...
+Evaluating...
+{'Train':  best_epoch_indx:55
+ auc:0.8176112781006909 
+ apur:0.43360165199205014 
+ f1:0.4618285906718303 
+ precision:0.361236961331788 
+ recall:0.6400634742835807 
+, 'Validation':  best_epoch_indx:55
+ auc:0.5671115526093199 
+ apur:0.22363066122689101 
+ f1:0.07881773399014778 
+ precision:0.27586206896551724 
+ recall:0.04597701149425287 
+, 'Test':  best_epoch_indx:55
+ auc:0.6872939430281954 
+ apur:0.24207676143177487 
+ f1:0.34307566238732584 
+ precision:0.24473889321901793 
+ recall:0.5735159817351598 
+}
+=====Epoch 56
+Training...
+Evaluating...
+{'Train':  best_epoch_indx:56
+ auc:0.8330961257160983 
+ apur:0.4665864446886283 
+ f1:0.48138473642800944 
+ precision:0.3631184123065236 
+ recall:0.7138990012134789 
+, 'Validation':  best_epoch_indx:56
+ auc:0.5754109539639763 
+ apur:0.23909070568703286 
+ f1:0.2127659574468085 
+ precision:0.2777777777777778 
+ recall:0.1724137931034483 
+, 'Test':  best_epoch_indx:56
+ auc:0.6945290551223581 
+ apur:0.2454406825305887 
+ f1:0.36504478334543694 
+ precision:0.24835309617918314 
+ recall:0.6885844748858447 
+}
+=====Epoch 57
+Training...
+Evaluating...
+{'Train':  best_epoch_indx:57
+ auc:0.8320587880494608 
+ apur:0.4540641362188771 
+ f1:0.48680277300769575 
+ precision:0.3691699223460184 
+ recall:0.7144590684215439 
+, 'Validation':  best_epoch_indx:57
+ auc:0.5743864376995758 
+ apur:0.23368278690072025 
+ f1:0.15821501014198783 
+ precision:0.2689655172413793 
+ recall:0.11206896551724138 
+, 'Test':  best_epoch_indx:57
+ auc:0.7030551832224634 
+ apur:0.2237811147371373 
+ f1:0.372498234047563 
+ precision:0.2509517766497462 
+ recall:0.7223744292237443 
+}
+=====Epoch 58
+Training...
+Evaluating...
+{'Train':  best_epoch_indx:58
+ auc:0.8363393697868621 
+ apur:0.46519965063572166 
+ f1:0.4939767190037899 
+ precision:0.3874409469717076 
+ recall:0.6813217586110333 
+, 'Validation':  best_epoch_indx:58
+ auc:0.6101404161011337 
+ apur:0.27734773793125217 
+ f1:0.17272727272727273 
+ precision:0.41304347826086957 
+ recall:0.10919540229885058 
+, 'Test':  best_epoch_indx:58
+ auc:0.7067172809125226 
+ apur:0.23670336346273332 
+ f1:0.37628865979381443 
+ precision:0.2621184919210054 
+ recall:0.6666666666666666 
+}
+=====Epoch 59
+Training...
+Evaluating...
+{'Train':  best_epoch_indx:59
+ auc:0.8352396533497987 
+ apur:0.4682128109430843 
+ f1:0.4881278970769085 
+ precision:0.36857142857142855 
+ recall:0.7224866984038084 
+, 'Validation':  best_epoch_indx:59
+ auc:0.6106928352708985 
+ apur:0.2742021159928676 
+ f1:0.2798507462686567 
+ precision:0.39893617021276595 
+ recall:0.21551724137931033 
+, 'Test':  best_epoch_indx:59
+ auc:0.6893983281667795 
+ apur:0.23158391600338754 
+ f1:0.36018306636155606 
+ precision:0.2403053435114504 
+ recall:0.7187214611872146 
+}
+=====Epoch 60
+Training...
+Evaluating...
+{'Train':  best_epoch_indx:60
+ auc:0.8342978101453856 
+ apur:0.4667222196774295 
+ f1:0.4880929579263232 
+ precision:0.37088245282103527 
+ recall:0.7136189676094464 
+, 'Validation':  best_epoch_indx:60
+ auc:0.5962405990387578 
+ apur:0.2603794656302309 
+ f1:0.2194616977225673 
+ precision:0.3925925925925926 
+ recall:0.15229885057471265 
+, 'Test':  best_epoch_indx:60
+ auc:0.7115790980732282 
+ apur:0.2491559913269281 
+ f1:0.3712215838121409 
+ precision:0.25550206327372765 
+ recall:0.6785388127853881 
+}
+=====Epoch 61
+Training...
+Evaluating...
+{'Train':  best_epoch_indx:61
+ auc:0.8439920550963168 
+ apur:0.48217113156808966 
+ f1:0.499372047126368 
+ precision:0.36737207972194114 
+ recall:0.7794268645570802 
+, 'Validation':  best_epoch_indx:61
+ auc:0.6165842135977078 
+ apur:0.278047588084965 
+ f1:0.28733459357277885 
+ precision:0.4198895027624309 
+ recall:0.21839080459770116 
+, 'Test':  best_epoch_indx:61
+ auc:0.7085427966342012 
+ apur:0.23334345244549465 
+ f1:0.36781096745430225 
+ precision:0.24329106458271896 
+ recall:0.7534246575342466 
+}
+=====Epoch 62
+Training...
+Evaluating...
+{'Train':  best_epoch_indx:62
+ auc:0.8422224462495277 
+ apur:0.4884945135113149 
+ f1:0.49625668449197863 
+ precision:0.3742468093182142 
+ recall:0.7363016895360777 
+, 'Validation':  best_epoch_indx:62
+ auc:0.600889444040102 
+ apur:0.25342693805339356 
+ f1:0.1346153846153846 
+ precision:0.4117647058823529 
+ recall:0.08045977011494253 
+, 'Test':  best_epoch_indx:62
+ auc:0.6964861208517137 
+ apur:0.2165075962297356 
+ f1:0.36561217097319487 
+ precision:0.2485226526592252 
+ recall:0.691324200913242 
+}
+=====Epoch 63
+Training...
+Evaluating...
+{'Train':  best_epoch_indx:63
+ auc:0.8505080319163806 
+ apur:0.505352301282467 
+ f1:0.5027022185064645 
+ precision:0.3695671261743788 
+ recall:0.7857742929151498 
+, 'Validation':  best_epoch_indx:63
+ auc:0.6008271534512264 
+ apur:0.2378056795802097 
+ f1:0.1761252446183953 
+ precision:0.27607361963190186 
+ recall:0.12931034482758622 
+, 'Test':  best_epoch_indx:63
+ auc:0.7003851745492926 
+ apur:0.23329608910691477 
+ f1:0.3616817964644052 
+ precision:0.24490456163054028 
+ recall:0.691324200913242 
+}
+=====Epoch 64
+Training...
+Evaluating...
+{'Train':  best_epoch_indx:64
+ auc:0.8468279646800722 
+ apur:0.5016787841265063 
+ f1:0.5024372184858394 
+ precision:0.375236164232063 
+ recall:0.7601045458788388 
+, 'Validation':  best_epoch_indx:64
+ auc:0.5757953524663795 
+ apur:0.22551904178666865 
+ f1:0.17346938775510204 
+ precision:0.2125 
+ recall:0.14655172413793102 
+, 'Test':  best_epoch_indx:64
+ auc:0.6943998566921052 
+ apur:0.21870638030365713 
+ f1:0.3624548736462094 
+ precision:0.246078431372549 
+ recall:0.6876712328767123 
+}
+=====Epoch 65
+Training...
+Evaluating...
+{'Train':  best_epoch_indx:65
+ auc:0.8573883225083136 
+ apur:0.525975420760812 
+ f1:0.5076599401428276 
+ precision:0.371885039506816 
+ recall:0.799589284047419 
+, 'Validation':  best_epoch_indx:65
+ auc:0.5802015920163136 
+ apur:0.22753145599238495 
+ f1:0.1989342806394316 
+ precision:0.26046511627906976 
+ recall:0.16091954022988506 
+, 'Test':  best_epoch_indx:65
+ auc:0.7095684993754487 
+ apur:0.2303726918096186 
+ f1:0.3765026083012021 
+ precision:0.2504526252263126 
+ recall:0.7579908675799086 
+}
+=====Epoch 66
+Training...
+Evaluating...
+{'Train':  best_epoch_indx:66
+ auc:0.8505913178614635 
+ apur:0.5126922822158588 
+ f1:0.5015474239941744 
+ precision:0.3715441672285907 
+ recall:0.7714925791094931 
+, 'Validation':  best_epoch_indx:66
+ auc:0.6078463192818878 
+ apur:0.27629501523318306 
+ f1:0.20042643923240938 
+ precision:0.3884297520661157 
+ recall:0.13505747126436782 
+, 'Test':  best_epoch_indx:66
+ auc:0.6849268728585085 
+ apur:0.20896686611498957 
+ f1:0.3482240139463936 
+ precision:0.22867773325701202 
+ recall:0.7296803652968037 
+}
+=====Epoch 67
+Training...
+Evaluating...
+{'Train':  best_epoch_indx:67
+ auc:0.8567714025402071 
+ apur:0.5215253521533948 
+ f1:0.5113883694552589 
+ precision:0.38072850100419936 
+ recall:0.7785867637449827 
+, 'Validation':  best_epoch_indx:67
+ auc:0.5784090983601182 
+ apur:0.23523421007212048 
+ f1:0.2033271719038817 
+ precision:0.2849740932642487 
+ recall:0.15804597701149425 
+, 'Test':  best_epoch_indx:67
+ auc:0.6840034637352179 
+ apur:0.20517241839274364 
+ f1:0.3462578899909829 
+ precision:0.22987129601915593 
+ recall:0.7013698630136986 
+}
+=====Epoch 68
+Training...
+Evaluating...
+{'Train':  best_epoch_indx:68
+ auc:0.8592872072267494 
+ apur:0.5307100738771495 
+ f1:0.5132997404183844 
+ precision:0.3814451706608569 
+ recall:0.7844674694296649 
+, 'Validation':  best_epoch_indx:68
+ auc:0.6320691622243642 
+ apur:0.28805339731562724 
+ f1:0.27318718381112983 
+ precision:0.3306122448979592 
+ recall:0.23275862068965517 
+, 'Test':  best_epoch_indx:68
+ auc:0.6916348166253756 
+ apur:0.2243904706021002 
+ f1:0.35739313244569026 
+ precision:0.2401129943502825 
+ recall:0.6986301369863014 
+}
+=====Epoch 69
+Training...
+Evaluating...
+{'Train':  best_epoch_indx:69
+ auc:0.8579724639971164 
+ apur:0.525125633664354 
+ f1:0.5192350385335067 
+ precision:0.39321740801229704 
+ recall:0.7641183608699711 
+, 'Validation':  best_epoch_indx:69
+ auc:0.6213887850712408 
+ apur:0.26067616065646815 
+ f1:0.23168654173764908 
+ precision:0.28451882845188287 
+ recall:0.19540229885057472 
+, 'Test':  best_epoch_indx:69
+ auc:0.6964224207691319 
+ apur:0.21476860042196802 
+ f1:0.35628672150411284 
+ precision:0.239873417721519 
+ recall:0.6922374429223744 
+}
+=====Epoch 70
+Training...
+Evaluating...
+{'Train':  best_epoch_indx:70
+ auc:0.8556862020719782 
+ apur:0.5324132210141865 
+ f1:0.5075392038600723 
+ precision:0.3748830578696485 
+ recall:0.7854942593111174 
+, 'Validation':  best_epoch_indx:70
+ auc:0.5698449620027408 
+ apur:0.22259324900439942 
+ f1:0.21024258760107817 
+ precision:0.19796954314720813 
+ recall:0.22413793103448276 
+, 'Test':  best_epoch_indx:70
+ auc:0.6939449647885862 
+ apur:0.22083544081358397 
+ f1:0.3603247750713188 
+ precision:0.23714615829000577 
+ recall:0.7497716894977169 
+}
+=====Epoch 71
+Training...
+Evaluating...
+{'Train':  best_epoch_indx:71
+ auc:0.865357940859429 
+ apur:0.5473330102342591 
+ f1:0.5174206195978258 
+ precision:0.37945456129650607 
+ recall:0.8130308970409782 
+, 'Validation':  best_epoch_indx:71
+ auc:0.6085438099546918 
+ apur:0.2638560190616974 
+ f1:0.2367066895368782 
+ precision:0.2936170212765957 
+ recall:0.19827586206896552 
+, 'Test':  best_epoch_indx:71
+ auc:0.6898144190427974 
+ apur:0.21035109338634903 
+ f1:0.3595754091110128 
+ precision:0.23723373212722498 
+ recall:0.7424657534246575 
+}
+=====Epoch 72
+Training...
+Evaluating...
+{'Train':  best_epoch_indx:72
+ auc:0.8654194496849457 
+ apur:0.5506886269829081 
+ f1:0.5150467486396296 
+ precision:0.3798669623059867 
+ recall:0.799589284047419 
+, 'Validation':  best_epoch_indx:72
+ auc:0.5977552438840477 
+ apur:0.2538377748250776 
+ f1:0.25510204081632654 
+ precision:0.3125 
+ recall:0.21551724137931033 
+, 'Test':  best_epoch_indx:72
+ auc:0.6861490014787273 
+ apur:0.22095025548273436 
+ f1:0.34130434782608693 
+ precision:0.2239657631954351 
+ recall:0.7168949771689498 
+}
+=====Epoch 73
+Training...
+Evaluating...
+{'Train':  best_epoch_indx:73
+ auc:0.8571217663219591 
+ apur:0.5314229661210506 
+ f1:0.5070166398933107 
+ precision:0.3754039497307002 
+ recall:0.7807336880425652 
+, 'Validation':  best_epoch_indx:73
+ auc:0.6092429398535189 
+ apur:0.2771376467443165 
+ f1:0.2476894639556377 
+ precision:0.3471502590673575 
+ recall:0.1925287356321839 
+, 'Test':  best_epoch_indx:73
+ auc:0.6871081684116755 
+ apur:0.23904117484654835 
+ f1:0.34556500607533414 
+ precision:0.23543046357615893 
+ recall:0.6493150684931507 
+}
+=====Epoch 74
+Training...
+Evaluating...
+{'Train':  best_epoch_indx:74
+ auc:0.8644076095574146 
+ apur:0.5494410380801285 
+ f1:0.5114195883015957 
+ precision:0.37480979087865746 
+ recall:0.8047232334546812 
+, 'Validation':  best_epoch_indx:74
+ auc:0.5816695189199468 
+ apur:0.25290160684484503 
+ f1:0.19915254237288135 
+ precision:0.3790322580645161 
+ recall:0.13505747126436782 
+, 'Test':  best_epoch_indx:74
+ auc:0.6957329244355177 
+ apur:0.21461512697665575 
+ f1:0.3563191339138621 
+ precision:0.2400126823081801 
+ recall:0.691324200913242 
+}
+=====Epoch 75
+Training...
+Evaluating...
+{'Train':  best_epoch_indx:75
+ auc:0.8707210396135185 
+ apur:0.5679348938173381 
+ f1:0.5123640526617058 
+ precision:0.369463821356338 
+ recall:0.8355269298982545 
+, 'Validation':  best_epoch_indx:75
+ auc:0.5958775104746542 
+ apur:0.2514022588117258 
+ f1:0.2508833922261484 
+ precision:0.3256880733944954 
+ recall:0.20402298850574713 
+, 'Test':  best_epoch_indx:75
+ auc:0.7123162484317054 
+ apur:0.237381830524184 
+ f1:0.37096433846803123 
+ precision:0.241218441273326 
+ recall:0.8027397260273973 
+}
+=====Epoch 76
+Training...
+Evaluating...
+{'Train':  best_epoch_indx:76
+ auc:0.8724193224766773 
+ apur:0.565723793702259 
+ f1:0.512154587194727 
+ precision:0.366750040342101 
+ recall:0.8485951647531037 
+, 'Validation':  best_epoch_indx:76
+ auc:0.5523503222718361 
+ apur:0.20276188320937008 
+ f1:0.2070063694267516 
+ precision:0.23214285714285715 
+ recall:0.1867816091954023 
+, 'Test':  best_epoch_indx:76
+ auc:0.7084785432392842 
+ apur:0.2289254599576148 
+ f1:0.3619813717188823 
+ precision:0.2356020942408377 
+ recall:0.7808219178082192 
+}
+=====Epoch 77
+Training...
+Evaluating...
+{'Train':  best_epoch_indx:77
+ auc:0.8797671273206233 
+ apur:0.5916502089775375 
+ f1:0.5273015500234852 
+ precision:0.384608796197165 
+ recall:0.8383272659385793 
+, 'Validation':  best_epoch_indx:77
+ auc:0.5631118411131001 
+ apur:0.20588905655008471 
+ f1:0.23696682464454977 
+ precision:0.2631578947368421 
+ recall:0.21551724137931033 
+, 'Test':  best_epoch_indx:77
+ auc:0.7057077625570776 
+ apur:0.2259819467443709 
+ f1:0.36612155235538196 
+ precision:0.2498334443704197 
+ recall:0.684931506849315 
+}
+=====Epoch 78
+Training...
+Evaluating...
+{'Train':  best_epoch_indx:78
+ auc:0.8798046433980008 
+ apur:0.5856190604879428 
+ f1:0.526698887788971 
+ precision:0.382727541996361 
+ recall:0.8443013161579389 
+, 'Validation':  best_epoch_indx:78
+ auc:0.555868101317282 
+ apur:0.20197489956079373 
+ f1:0.1732283464566929 
+ precision:0.1916376306620209 
+ recall:0.15804597701149425 
+, 'Test':  best_epoch_indx:78
+ auc:0.6981040061196344 
+ apur:0.22121384390943039 
+ f1:0.3550239234449761 
+ precision:0.24051863857374392 
+ recall:0.6776255707762557 
+}
+=====Epoch 79
+Training...
+Evaluating...
+{'Train':  best_epoch_indx:79
+ auc:0.8821593784574027 
+ apur:0.5935452666572059 
+ f1:0.5239854528661317 
+ precision:0.37926712071198765 
+ recall:0.8472883412676188 
+, 'Validation':  best_epoch_indx:79
+ auc:0.566393571611228 
+ apur:0.2223206126734195 
+ f1:0.17102966841186737 
+ precision:0.21777777777777776 
+ recall:0.14080459770114942 
+, 'Test':  best_epoch_indx:79
+ auc:0.6951996696725359 
+ apur:0.22193669200366073 
+ f1:0.3528853004037046 
+ precision:0.23844672657252888 
+ recall:0.6785388127853881 
+}
+Early stopping at epoch 79: validation metric did not improve for 30 epochs. Best valid AUPR: 0.2918
+Finished training!
+Best validation epoch: 68, Best validation F-score: 0.3958
+
+[GPU 4] 实验 GCN_HgKAN_only_kan_hypergraph_funcKAN_fourier_classification_cold_drug_seed42 完成!
+[GPU 4] 最佳epoch: 49
+[GPU 4] Test AUPR: 0.2177
+[GPU 4] Test AUC: 0.6940

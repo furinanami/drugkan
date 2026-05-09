@@ -1,0 +1,233 @@
+================================================================================
+多GPU并行对比实验
+================================================================================
+
+使用GPU: [0, 1]
+GNN类型: ['MeanHG_only']
+任务类型: ['classification', 'regression']
+KAN类型: fourier
+训练轮数: 80
+随机种子: 42
+Fold: 0
+path_current_dir /home/bioinfo202200130116/bioinfo/codebasev5/graphnn/deepadr
+path_current_dir /home/bioinfo202200130116/bioinfo/codebasev5/graphnn/deepadr
+
+实验目录: /home/bioinfo202200130116/bioinfo/codebasev5/graphnn/data/processed/DrugComb_loewe_thresh_1/data_v1/experiments/multi_gpu_comparison_2026-05-10_03-55-58_thesis_mean_hypergraph_cold_drug_seed42
+
+加载数据集...
+数据集大小: 160228
+
+分区文件不存在，按 cold_drug 场景即时生成分区...
+/home/bioinfo202200130116/bioinfo/codebasev5/graphnn/deepadr/cold_split.py:162: UserWarning: It is not recommended to directly access the internal storage format `data` of an 'InMemoryDataset'. If you are absolutely certain what you are doing, access the internal storage via `InMemoryDataset._data` instead to suppress this warning. Alternatively, you can access stacked individual attributes of every graph via `dataset.{attr_name}`.
+  drug_ids_a = dataset.data.drug_a_id.cpu().numpy()
+/home/bioinfo202200130116/bioinfo/codebasev5/graphnn/deepadr/cold_split.py:163: UserWarning: It is not recommended to directly access the internal storage format `data` of an 'InMemoryDataset'. If you are absolutely certain what you are doing, access the internal storage via `InMemoryDataset._data` instead to suppress this warning. Alternatively, you can access stacked individual attributes of every graph via `dataset.{attr_name}`.
+  drug_ids_b = dataset.data.drug_b_id.cpu().numpy()
+/home/bioinfo202200130116/bioinfo/codebasev5/graphnn/deepadr/cold_split.py:164: UserWarning: It is not recommended to directly access the internal storage format `data` of an 'InMemoryDataset'. If you are absolutely certain what you are doing, access the internal storage via `InMemoryDataset._data` instead to suppress this warning. Alternatively, you can access stacked individual attributes of every graph via `dataset.{attr_name}`.
+  y = dataset.data.y.cpu().numpy().reshape(-1)
+/home/bioinfo202200130116/bioinfo/codebasev5/graphnn/deepadr/cold_split.py:290: UserWarning: It is not recommended to directly access the internal storage format `data` of an 'InMemoryDataset'. If you are absolutely certain what you are doing, access the internal storage via `InMemoryDataset._data` instead to suppress this warning. Alternatively, you can access stacked individual attributes of every graph via `dataset.{attr_name}`.
+  y = dataset.data.y.cpu().numpy()
+  训练集: 115363
+  验证集: 12819
+  测试集: 32046
+  策略: cold_drug_balanced_exposure
+  Held-out test drugs: 11
+  Held-out validation drugs: 7
+path_current_dir /home/bioinfo202200130116/bioinfo/codebasev5/graphnn/deepadr
+path_current_dir /home/bioinfo202200130116/bioinfo/codebasev5/graphnn/deepadr
+path_current_dir /home/bioinfo202200130116/bioinfo/codebasev5/graphnn/deepadr
+path_current_dir /home/bioinfo202200130116/bioinfo/codebasev5/graphnn/deepadr
+path_current_dir /home/bioinfo202200130116/bioinfo/codebasev5/graphnn/deepadr
+path_current_dir /home/bioinfo202200130116/bioinfo/codebasev5/graphnn/deepadr
+
+总共 2 个实验将在 2 个GPU上运行
+
+实验列表:
+  1. GCN_MeanHG_only_mean_hypergraph_classification_cold_drug_seed42 (GPU 0) [DrugKAN:✗ HgKAN:✗ HG:mean_hypergraph]
+  2. GCN_MeanHG_only_mean_hypergraph_loewe_regression_cold_drug_seed42 (GPU 1) [DrugKAN:✗ HgKAN:✗ HG:mean_hypergraph]
+
+开始并行训练...
+================================================================================
+gpu: cuda:1
+超图模式: mean_hypergraph
+任务类型: regression
+回归目标: loewe_score
+使用重构损失: False
+/home/bioinfo202200130116/bioinfo/codebasev5/graphnn/deepadr/train_functions_hypergraph.py:173: UserWarning: It is not recommended to directly access the internal storage format `data` of an 'InMemoryDataset'. If you are absolutely certain what you are doing, access the internal storage via `InMemoryDataset._data` instead to suppress this warning. Alternatively, you can access stacked individual attributes of every graph via `dataset.{attr_name}`.
+  expression_scaler.fit(used_dataset.data.expression[partition['train']])
+gpu: cuda:0
+超图模式: mean_hypergraph
+任务类型: classification
+使用重构损失: False
+/home/bioinfo202200130116/bioinfo/codebasev5/graphnn/deepadr/train_functions_hypergraph.py:173: UserWarning: It is not recommended to directly access the internal storage format `data` of an 'InMemoryDataset'. If you are absolutely certain what you are doing, access the internal storage via `InMemoryDataset._data` instead to suppress this warning. Alternatively, you can access stacked individual attributes of every graph via `dataset.{attr_name}`.
+  expression_scaler.fit(used_dataset.data.expression[partition['train']])
+/home/bioinfo202200130116/bioinfo/codebasev5/graphnn/deepadr/train_functions_hypergraph.py:88: UserWarning: It is not recommended to directly access the internal storage format `data` of an 'InMemoryDataset'. If you are absolutely certain what you are doing, access the internal storage via `InMemoryDataset._data` instead to suppress this warning. Alternatively, you can access stacked individual attributes of every graph via `dataset.{attr_name}`.
+  if not hasattr(used_dataset.data, attr_name):
+/home/bioinfo202200130116/bioinfo/codebasev5/graphnn/deepadr/train_functions_hypergraph.py:91: UserWarning: It is not recommended to directly access the internal storage format `data` of an 'InMemoryDataset'. If you are absolutely certain what you are doing, access the internal storage via `InMemoryDataset._data` instead to suppress this warning. Alternatively, you can access stacked individual attributes of every graph via `dataset.{attr_name}`.
+  train_targets = getattr(used_dataset.data, attr_name)[train_indices].view(-1).type(fdtype)
+图结构构建: 仅使用当前batch。每行样本加一条边/超边；不检索额外context样本。
+Initialized Standard GNN: gcn, 5 layers, emb_dim=128
+回归target标准化: enabled=True, mean=-17.296831, std=21.266243
+图结构构建: 仅使用当前batch。每行样本加一条边/超边；不检索额外context样本。
+Initialized Standard GNN: gcn, 5 layers, emb_dim=128
+Dropout(p=0.2, inplace=False) Dropout(p=0.2, inplace=False)
+Dropout(p=0.2, inplace=False) Dropout(p=0.2, inplace=False)
+=====Epoch 0
+Training...
+/home/bioinfo202200130116/bioinfo/codebasev5/graphnn/deepadr/train_functions_hypergraph.py:261: UserWarning: It is not recommended to directly access the internal storage format `data` of an 'InMemoryDataset'. If you are absolutely certain what you are doing, access the internal storage via `InMemoryDataset._data` instead to suppress this warning. Alternatively, you can access stacked individual attributes of every graph via `dataset.{attr_name}`.
+  y_weights = compute_class_weights(used_dataset.data.y[partition['train']])
+=====Epoch 0
+Training...
+Evaluating...
+Evaluating...
+{'Train':  best_epoch_indx:0
+ auc:0.7323240856259234 
+ apur:0.2777993485101004 
+ f1:0.3285816108339273 
+ precision:0.19945115393648713 
+ recall:0.9319586437936811 
+, 'Validation':  best_epoch_indx:0
+ auc:0.6330193207190822 
+ apur:0.22129727795575652 
+ f1:0.25922138133224243 
+ precision:0.14892283587935762 
+ recall:0.9994742376445847 
+, 'Test':  best_epoch_indx:0
+ auc:0.5278002251526066 
+ apur:0.15720010689485486 
+ f1:0.21762503870077965 
+ precision:0.12469760990871852 
+ recall:0.8541758727353072 
+}
+=====Epoch 1
+Training...
+{'Train':  best_epoch_indx:0
+ auc:0.014513877607766124 
+ apur:-21.111350548620337 
+ f1:13.821347554240916 
+ precision:0.17478550704842058 
+ recall:0.22778181037945888 
+, 'Validation':  best_epoch_indx:0
+ auc:-0.05831842483024641 
+ apur:-20.626575463158456 
+ f1:14.5348287467531 
+ precision:0.09118339558923813 
+ recall:0.13026021634251558 
+, 'Test':  best_epoch_indx:0
+ auc:-0.1204003684106092 
+ apur:-22.13164673548261 
+ f1:15.917395000651796 
+ precision:-0.17570641684987603 
+ recall:-0.06445038774782451 
+}
+=====Epoch 1
+Training...
+Evaluating...
+{'Train':  best_epoch_indx:1
+ auc:0.7444601538467747 
+ apur:0.2902969121400313 
+ f1:0.393990902174089 
+ precision:0.2737067026540711 
+ recall:0.7028822272280945 
+, 'Validation':  best_epoch_indx:1
+ auc:0.6464582389999988 
+ apur:0.22023191902696887 
+ f1:0.3172499482294471 
+ precision:0.26170140075162285 
+ recall:0.4027339642481598 
+, 'Test':  best_epoch_indx:1
+ auc:0.5607609120816162 
+ apur:0.15638047394151072 
+ f1:0.10257072729621496 
+ precision:0.12348367029548989 
+ recall:0.08771542200618648 
+}
+=====Epoch 2
+Training...
+Evaluating...
+{'Train':  best_epoch_indx:1
+ auc:0.023740114531083267 
+ apur:-21.01229468752088 
+ f1:13.658825493356543 
+ precision:0.1887978572756779 
+ recall:0.26323289861351973 
+, 'Validation':  best_epoch_indx:1
+ auc:-0.019350625300053936 
+ apur:-20.243273759290147 
+ f1:14.093527425329588 
+ precision:0.12512110644661778 
+ recall:0.1948565197352964 
+, 'Test':  best_epoch_indx:1
+ auc:-0.051950863509025336 
+ apur:-21.44493998381637 
+ f1:15.342003914997877 
+ precision:0.005477542064716632 
+ recall:0.07188000580258842 
+}
+=====Epoch 2
+Training...
+Evaluating...
+{'Train':  best_epoch_indx:2
+ auc:0.7619318883067032 
+ apur:0.3130942474804601 
+ f1:0.41128898160325306 
+ precision:0.27854217854217855 
+ recall:0.7857679200600705 
+, 'Validation':  best_epoch_indx:2
+ auc:0.6880814533367969 
+ apur:0.24362394832640896 
+ f1:0.37130521421454665 
+ precision:0.2713592233009709 
+ recall:0.5878023133543638 
+, 'Test':  best_epoch_indx:2
+ auc:0.4909206231887595 
+ apur:0.13285089353128177 
+ f1:0.15265700483091788 
+ precision:0.12669485347718326 
+ recall:0.19200176756517898 
+}
+=====Epoch 3
+Training...
+Evaluating...
+Evaluating...
+{'Train':  best_epoch_indx:2
+ auc:0.06262522459328479 
+ apur:-20.589575462436095 
+ f1:13.28751712454945 
+ precision:0.2521380324440789 
+ recall:0.2765082006456125 
+, 'Validation':  best_epoch_indx:2
+ auc:-0.009280968639519438 
+ apur:-20.143038997710615 
+ f1:13.987863124630476 
+ precision:0.1442325332873115 
+ recall:0.23565669489289218 
+, 'Test':  best_epoch_indx:2
+ auc:-0.04843124222891948 
+ apur:-21.409034643900608 
+ f1:15.269421126477498 
+ precision:-0.06267395274676882 
+ recall:0.10670561875645405 
+}
+=====Epoch 3
+Training...
+{'Train':  best_epoch_indx:3
+ auc:0.7148587174384998 
+ apur:0.2694576703530292 
+ f1:0.32131226053639844 
+ precision:0.27443040045813394 
+ recall:0.3875122740137469 
+, 'Validation':  best_epoch_indx:3
+ auc:0.5523690995251715 
+ apur:0.17246678484261443 
+ f1:0.03488372093023256 
+ precision:0.11676646706586827 
+ recall:0.02050473186119874 
+, 'Test':  best_epoch_indx:3
+ auc:0.4315225892838792 
+ apur:0.11353606870640706 
+ f1:0.009237021984112323 
+ precision:0.02818489289740699 
+ recall:0.00552364118426867 
+}
+=====Epoch 4
+Training...

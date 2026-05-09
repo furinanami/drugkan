@@ -1,0 +1,12 @@
+name,task,hypergraph_mode,decoder_type,use_drug_kan,use_drug_readout_kan,drug_jk,use_hypergraph_kan,kan_type,total_params,trainable_params,kan_params,decoder_params
+GCN_mlp,classification,mlp,mlp,False,False,last,False,fourier,42637058,42637058,0,132482
+KAGCN_mlp,classification,mlp,mlp,True,False,last,False,fourier,43456898,43456898,902400,132482
+GCN_kan_mlp,classification,kan_mlp,kan,False,False,last,False,fourier,43948162,43948162,1442560,1443586
+KAGCN_kan_mlp,classification,kan_mlp,kan,True,False,last,False,fourier,44768002,44768002,2344960,1443586
+GCN_hypergraph,classification,hypergraph,mlp,False,False,last,False,fourier,42903042,42903042,0,132482
+KAGCN_hypergraph,classification,hypergraph,mlp,True,False,last,False,fourier,43722882,43722882,902400,132482
+GCN_kan_hypergraph,classification,kan_hypergraph,mlp,False,False,last,True,fourier,45770626,45770626,3066368,132482
+KAGCN_kan_hypergraph,classification,kan_hypergraph,mlp,True,False,last,True,fourier,46590466,46590466,3968768,132482
+GCN_kan_aggregated,classification,kan_aggregated,mlp,False,False,last,True,fourier,44280322,44280322,1643264,132482
+KAGCN_kan_aggregated,classification,kan_aggregated,mlp,True,False,last,True,fourier,45100162,45100162,2545664,132482
+KAGCN_multilayer_kan_mlp_drugreadoutkan,classification,kan_mlp,kan,True,True,concat_kan,False,fourier,46030594,46030594,3607040,1443586

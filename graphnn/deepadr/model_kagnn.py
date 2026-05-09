@@ -9,6 +9,7 @@ from torch_geometric.nn import global_add_pool, global_mean_pool, global_max_poo
 
 from .kagnn_node import KAGNN_node, KAGNN_node_Virtualnode
 from .model_attn_siamese import FeatureEmbAttention as GNNLayerEmbAttention
+from .kan_layers import KANLinear
 
 
 class KAGNN(nn.Module):
@@ -47,7 +48,7 @@ class KAGNN(nn.Module):
     def __init__(self, num_layer=5, emb_dim=300, gnn_type='gat',
                  virtual_node=True, residual=False, drop_ratio=0.5,
                  JK="last", graph_pooling="mean", with_edge_attr=False,
-                 use_kan=False, kan_type='fourier'):
+                 use_kan=False, kan_type='fourier', use_readout_kan=False):
         super(KAGNN, self).__init__()
 
         self.num_layer = num_layer
@@ -58,27 +59,31 @@ class KAGNN(nn.Module):
         self.with_edge_attr = with_edge_attr
         self.use_kan = use_kan
         self.kan_type = kan_type
+        self.use_readout_kan = use_readout_kan
 
         if self.num_layer < 2:
             raise ValueError("Number of GNN layers must be greater than 1.")
 
+        node_jk = "multilayer" if JK == "concat_kan" else JK
+
         # GNN节点嵌入生成器
         if virtual_node:
             self.gnn_node = KAGNN_node_Virtualnode(
-                num_layer, emb_dim, JK=JK, drop_ratio=drop_ratio,
+                num_layer, emb_dim, JK=node_jk, drop_ratio=drop_ratio,
                 residual=residual, gnn_type=gnn_type,
                 use_kan=use_kan, kan_type=kan_type
             )
         else:
             self.gnn_node = KAGNN_node(
-                num_layer, emb_dim, JK=JK, drop_ratio=drop_ratio,
+                num_layer, emb_dim, JK=node_jk, drop_ratio=drop_ratio,
                 residual=residual, gnn_type=gnn_type,
                 with_edge_attr=self.with_edge_attr,
                 use_kan=use_kan, kan_type=kan_type
             )
 
-        # 层级池化注意力（用于multilayer JK模式）
-        self.layer_pooling = GNNLayerEmbAttention(emb_dim)
+        # 层级池化注意力只用于 multilayer JK；concat_kan 直接拼接各层图表示后过 KAN。
+        if self.JK == "multilayer":
+            self.layer_pooling = GNNLayerEmbAttention(emb_dim)
 
         # 图级池化函数
         if self.graph_pooling == "sum":
@@ -98,6 +103,14 @@ class KAGNN(nn.Module):
             )
         else:
             raise ValueError("Invalid graph pooling type.")
+
+        if self.use_readout_kan:
+            self.readout_kan = KANLinear(emb_dim, emb_dim, kan_type=kan_type)
+            self.readout_norm = nn.LayerNorm(emb_dim)
+
+        if self.JK == "concat_kan":
+            self.layer_concat_kan = KANLinear(num_layer * emb_dim, emb_dim, kan_type=kan_type)
+            self.layer_concat_norm = nn.LayerNorm(emb_dim)
 
         # 打印模型配置
         mode_str = "KAN-enhanced" if use_kan else "Standard"
@@ -125,24 +138,33 @@ class KAGNN(nn.Module):
             h_node = self.gnn_node(x, edge_index, None)
 
         # 图级池化
-        if self.JK == "multilayer":
-            # 多层Jumping Knowledge：对每层输出分别池化，然后加权聚合
+        if self.JK in ["multilayer", "concat_kan"]:
+            if self.JK == "concat_kan":
+                h_node = h_node[1:]
+
+            # 多层Jumping Knowledge：对每层输出分别池化
             h_graphs = [self.pool(h, batch) for h in h_node]
 
             # 拼接所有层的图表示
             h_graph_cat = torch.cat(h_graphs, dim=1)
 
-            # 重塑为 [batch_size, num_layers, emb_dim]
-            h_graph_t = h_graph_cat.reshape(
-                h_graph_cat.shape[0],
-                len(h_graphs),
-                h_graph_cat.shape[1] // len(h_graphs)
-            )
+            if self.JK == "concat_kan":
+                h_graph = self.layer_concat_norm(self.layer_concat_kan(h_graph_cat))
+            else:
+                # 重塑为 [batch_size, num_layers, emb_dim]
+                h_graph_t = h_graph_cat.reshape(
+                    h_graph_cat.shape[0],
+                    len(h_graphs),
+                    h_graph_cat.shape[1] // len(h_graphs)
+                )
 
-            # 使用注意力机制加权聚合不同层的表示
-            h_graph, layer_weights = self.layer_pooling(h_graph_t)
+                # 使用注意力机制加权聚合不同层的表示
+                h_graph, layer_weights = self.layer_pooling(h_graph_t)
         else:
             # 单层输出直接池化
             h_graph = self.pool(h_node, batch)
+
+        if self.use_readout_kan:
+            h_graph = self.readout_norm(self.readout_kan(h_graph))
 
         return h_graph

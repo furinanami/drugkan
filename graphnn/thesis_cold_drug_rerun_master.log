@@ -1,0 +1,5 @@
+Wrote 6 commands to /home/bioinfo202200130116/bioinfo/codebasev5/graphnn/thesis_cold_drug_rerun_commands.txt
+
+[1/6] /usr/bin/python3 graphnn/run_multi_gpu_comparison.py --gpus 0,1,2,3,4,5 --epochs 80 --batch_size 128 --early_stopping 10 --scenario cold_drug --gnn_types gcn --use_kan both --use_hypergraph mlp,hypergraph,kan_hypergraph,kan_aggregated --task classification --seed 42 --run_tag thesis_cold_drug_classification_seed42
+/usr/lib/python3.10/multiprocessing/resource_tracker.py:224: UserWarning: resource_tracker: There appear to be 9 leaked semaphore objects to clean up at shutdown
+  warnings.warn('resource_tracker: There appear to be %d '

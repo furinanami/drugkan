@@ -1,7 +1,7 @@
 """
 DeepDDS with Hypergraph Integration
 集成超图神经网络的DeepDDS模型实现
-支持三种模式：hypergraph, kan_hypergraph, kan_aggregated
+支持多种模式：hypergraph, mean_hypergraph, kan_hypergraph, kan_aggregated
 """
 
 import torch
@@ -222,6 +222,54 @@ class HypergraphEncoder(nn.Module):
         x = self.bn3(x)
         x = self.act(x)
 
+        return x
+
+
+class MeanHypergraphLayer(nn.Module):
+    """无边函数的超图平均消息层：nodes -> hyperedges -> nodes。"""
+    def __init__(self):
+        super().__init__()
+
+    @staticmethod
+    def _mean_aggregate(values, index, dim_size):
+        out = values.new_zeros(dim_size, values.size(-1))
+        counts = values.new_zeros(dim_size, 1)
+        out.index_add_(0, index, values)
+        counts.index_add_(0, index, values.new_ones(values.size(0), 1))
+        return out / counts.clamp(min=1)
+
+    def forward(self, x, hyperedge_index):
+        if hyperedge_index.shape[1] == 0:
+            return x
+
+        node_idx = hyperedge_index[0]
+        edge_idx = hyperedge_index[1]
+        num_edges = int(edge_idx.max().item()) + 1
+
+        edge_msg = self._mean_aggregate(x[node_idx], edge_idx, num_edges)
+        node_msg = self._mean_aggregate(edge_msg[edge_idx], node_idx, x.size(0))
+        return node_msg
+
+
+class MeanHypergraphEncoder(nn.Module):
+    """纯平均超图编码器：超边取节点均值，节点取超边均值，ReLU进入下一层。"""
+    def __init__(self, in_channels=128, hidden_channels=256, out_channels=128, dropout=0.2):
+        super().__init__()
+
+        self.input_proj = nn.Identity() if in_channels == out_channels else nn.Linear(in_channels, out_channels)
+        self.layers = nn.ModuleList([MeanHypergraphLayer() for _ in range(3)])
+        self.norms = nn.ModuleList([nn.BatchNorm1d(out_channels) for _ in range(3)])
+        self.act = nn.ReLU()
+        self.dropout = nn.Dropout(dropout)
+
+    def forward(self, x, hyperedge_index):
+        x = self.input_proj(x)
+        for layer_idx, (layer, norm) in enumerate(zip(self.layers, self.norms)):
+            x = layer(x, hyperedge_index)
+            x = norm(x)
+            x = self.act(x)
+            if layer_idx < len(self.layers) - 1:
+                x = self.dropout(x)
         return x
 
 
@@ -542,13 +590,57 @@ class HypergraphDecoder(nn.Module):
         return self.log_softmax(x)
 
 
+class KANDecoder(nn.Module):
+    """两层KAN融合头：用于原版DDoS/DeepDDS的concat+MLP直接对照。"""
+    def __init__(self, in_channels=384, hidden1=256, hidden2=128, num_classes=2,
+                 dropout=0.2, task='classification', kan_type='fourier'):
+        super().__init__()
+        self.task = task
+
+        self.kan1 = KANLinear(in_channels, hidden1, kan_type=kan_type)
+        self.bn1 = nn.BatchNorm1d(hidden1)
+        self.kan2 = KANLinear(hidden1, hidden2, kan_type=kan_type)
+        self.bn2 = nn.BatchNorm1d(hidden2)
+
+        output_dim = 1 if task == 'regression' else num_classes
+        self.out = nn.Linear(hidden2, output_dim)
+
+        self.dropout = nn.Dropout(dropout)
+        self.act = nn.ReLU()
+        self.log_softmax = nn.LogSoftmax(dim=-1)
+
+        nn.init.xavier_normal_(self.out.weight.data)
+        if self.out.bias is not None:
+            self.out.bias.data.uniform_(-1, 0)
+
+    def forward(self, h_a, h_b, h_e):
+        x = torch.cat([h_a, h_b, h_e], dim=-1)
+
+        x = self.kan1(x)
+        x = self.bn1(x)
+        x = self.act(x)
+        x = self.dropout(x)
+
+        x = self.kan2(x)
+        x = self.bn2(x)
+        x = self.act(x)
+        x = self.dropout(x)
+
+        x = self.out(x)
+        if self.task == 'regression':
+            return x.squeeze(-1)
+        return self.log_softmax(x)
+
+
 class DeepDDS_Hypergraph(nn.Module):
     """
-    集成超图的DeepDDS模型（支持三种模式）
+    集成超图的DeepDDS模型（支持多种模式）
 
     模式选择：
     - 'mlp': 不使用图结构，直接MLP
+    - 'kan_mlp': 不使用图结构，直接两层KAN融合头
     - 'hypergraph': 原始超图（3节点超边：drug_a + drug_b + cell）
+    - 'mean_hypergraph': 原始超图结构 + 无边函数mean-mean-ReLU消息传递
     - 'kan_hypergraph': 原始超图结构 + KAN超边消息函数
     - 'kan_aggregated': KAN聚合版（drug_pair-cell + shared-drug pair-pair）
     """
@@ -569,15 +661,19 @@ class DeepDDS_Hypergraph(nn.Module):
                  use_kan=True,
                  kan_type='fourier',
                  use_drug_kan=True,
+                 use_drug_readout_kan=False,
                  gnn_type='gcn',
                  num_layer=5,
+                 drug_jk='last',
                  graph_pooling='mean',
+                 decoder_type='mlp',
                  task='classification'):
         super().__init__()
 
         self.hypergraph_mode = hypergraph_mode  # 保存模式状态
         self.use_drug_kan = use_drug_kan
         self.task = task
+        self.decoder_type = 'kan' if hypergraph_mode == 'kan_mlp' else decoder_type
 
         # Stage 1: 药物编码器
         self.drug_encoder_uses_atom_encoder = gnn_type != 'gatnet'
@@ -587,12 +683,13 @@ class DeepDDS_Hypergraph(nn.Module):
                 num_layer=num_layer,
                 emb_dim=gat_output_dim,
                 drop_ratio=dropout,
-                JK="last",
+                JK=drug_jk,
                 graph_pooling=graph_pooling,
                 virtual_node=False,
                 with_edge_attr=False,
                 use_kan=use_drug_kan,
-                kan_type=kan_type
+                kan_type=kan_type,
+                use_readout_kan=use_drug_readout_kan
             )
         else:
             self.drug_encoder = GATNet(
@@ -628,6 +725,14 @@ class DeepDDS_Hypergraph(nn.Module):
                 dropout=dropout
             )
             self.hypergraph_builder = BatchHypergraphBuilder()
+        elif self.hypergraph_mode == 'mean_hypergraph':
+            self.hypergraph_encoder = MeanHypergraphEncoder(
+                in_channels=unified_dim,
+                hidden_channels=hypergraph_hidden,
+                out_channels=unified_dim,
+                dropout=dropout
+            )
+            self.hypergraph_builder = BatchHypergraphBuilder()
         elif self.hypergraph_mode == 'kan_hypergraph':
             self.hypergraph_encoder = KANHypergraphEncoder(
                 in_channels=unified_dim,
@@ -652,14 +757,18 @@ class DeepDDS_Hypergraph(nn.Module):
         # else: mlp模式不需要图编码器
 
         # Stage 4: 解码器
-        self.decoder = HypergraphDecoder(
-            in_channels=3*unified_dim,
-            hidden1=decoder_hidden1,
-            hidden2=decoder_hidden2,
-            num_classes=num_classes,
-            dropout=dropout,
-            task=task
-        )
+        decoder_kwargs = {
+            'in_channels': 3*unified_dim,
+            'hidden1': decoder_hidden1,
+            'hidden2': decoder_hidden2,
+            'num_classes': num_classes,
+            'dropout': dropout,
+            'task': task,
+        }
+        if self.decoder_type == 'kan':
+            self.decoder = KANDecoder(**decoder_kwargs, kan_type=kan_type)
+        else:
+            self.decoder = HypergraphDecoder(**decoder_kwargs)
 
         self.unified_dim = unified_dim
 
@@ -693,7 +802,7 @@ class DeepDDS_Hypergraph(nn.Module):
         h_a_aligned, h_b_aligned, h_e_aligned = self._encode_modalities(batch)
         # h_a_aligned, h_b_aligned, h_e_aligned: [batch, unified_dim]
 
-        if self.hypergraph_mode in ['hypergraph', 'kan_hypergraph']:
+        if self.hypergraph_mode in ['hypergraph', 'mean_hypergraph', 'kan_hypergraph']:
             # ===== 原始超图模式 =====
             # Stage 3: 构建超图（3节点超边：drug_a + drug_b + cell）
             node_features, hyperedge_index, node_mapping, batch_node_indices = \
@@ -753,7 +862,7 @@ class DeepDDS_Hypergraph_WithReconstruction(DeepDDS_Hypergraph):
         super().__init__(*args, **kwargs)
 
         # 重构权重矩阵（仅在使用超图时有意义）
-        if self.hypergraph_mode in ['hypergraph', 'kan_hypergraph']:
+        if self.hypergraph_mode in ['hypergraph', 'mean_hypergraph', 'kan_hypergraph']:
             unified_dim = kwargs.get('unified_dim', 128)
             self.drug_rec_weight = nn.Parameter(torch.randn(unified_dim, unified_dim))
             self.cell_rec_weight = nn.Parameter(torch.randn(unified_dim, unified_dim))
@@ -773,7 +882,7 @@ class DeepDDS_Hypergraph_WithReconstruction(DeepDDS_Hypergraph):
         # Stage 1-2: 仅编码当前query batch。
         h_a_aligned, h_b_aligned, h_e_aligned = self._encode_modalities(batch)
 
-        if self.hypergraph_mode in ['hypergraph', 'kan_hypergraph']:
+        if self.hypergraph_mode in ['hypergraph', 'mean_hypergraph', 'kan_hypergraph']:
             # ===== 超图模式 =====
             # Stage 3-4: 超图构建和卷积
             node_features, hyperedge_index, node_mapping, batch_node_indices = \
