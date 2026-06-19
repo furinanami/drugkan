@@ -94,6 +94,33 @@ def fit_regression_target_scaler(used_dataset, train_indices, target_score='loew
     return target_mean, target_std
 
 
+def build_cell_graph_edge_index(expression_tensor, train_indices, top_k=8):
+    """Build a fixed gene-gene graph from train-set expression correlations."""
+    top_k = int(top_k)
+    num_genes = int(expression_tensor.size(1))
+    if top_k <= 0 or num_genes <= 1:
+        return torch.zeros(2, 0, dtype=torch.long)
+
+    train_expr = expression_tensor[train_indices].float()
+    train_expr = train_expr - train_expr.mean(dim=0, keepdim=True)
+    train_expr = train_expr / train_expr.std(dim=0, unbiased=False, keepdim=True).clamp(min=1e-6)
+
+    corr = torch.matmul(train_expr.t(), train_expr) / max(train_expr.size(0) - 1, 1)
+    corr = corr.abs()
+    corr.fill_diagonal_(-float('inf'))
+
+    k = min(top_k, num_genes - 1)
+    knn = torch.topk(corr, k=k, dim=1).indices
+    src = torch.arange(num_genes).repeat_interleave(k)
+    dst = knn.reshape(-1).cpu()
+
+    edge_pairs = torch.stack([src, dst], dim=0)
+    rev_pairs = torch.stack([dst, src], dim=0)
+    edge_pairs = torch.cat([edge_pairs, rev_pairs], dim=1)
+    edge_pairs = torch.unique(edge_pairs.t(), dim=0).t().contiguous()
+    return edge_pairs.long()
+
+
 def regression_metric_report(pred_scores, true_scores, epoch, outlog=None):
     pred_scores = np.asarray(pred_scores, dtype=np.float64).reshape(-1)
     true_scores = np.asarray(true_scores, dtype=np.float64).reshape(-1)
@@ -167,10 +194,24 @@ def run_exp_deepdds_hypergraph(queue, used_dataset, gpu_num, tp, exp_dir, partit
     if tp.get('hypergraph_mode') in ['kan_hypergraph', 'kan_aggregated']:
         print(f"使用KAN: {tp.get('use_kan', True)}")
         print(f"KAN类型: {tp.get('kan_type', 'fourier')}")
+    if tp.get('hypergraph_mode') == 'kan_aggregated':
+        print(f"Pair边模式: {tp.get('pair_edge_mode', 'shared_drug')}")
+        print(f"Pair KNN k: {tp.get('pair_knn_k', 5)}")
 
     # 数据标准化
     expression_scaler = TorchStandardScaler()
     expression_scaler.fit(used_dataset.data.expression[partition['train']])
+    cell_graph_edge_index = None
+    if tp.get('cell_encoder_type', 'mlp') == 'gene_graph':
+        cell_graph_edge_index = build_cell_graph_edge_index(
+            expression_scaler.transform(used_dataset.data.expression.clone()),
+            partition['train'],
+            top_k=tp.get('cell_graph_top_k', 8)
+        )
+        print(
+            f"Cell图编码: gene_graph, genes={cell_graph_edge_index.max().item() + 1 if cell_graph_edge_index.numel() else used_dataset.data.expression.size(1)}, "
+            f"edges={cell_graph_edge_index.size(1)}, top_k={tp.get('cell_graph_top_k', 8)}"
+        )
 
     standardize_regression_target = bool(tp.get('standardize_regression_target', True))
     if task == 'regression':
@@ -240,9 +281,19 @@ def run_exp_deepdds_hypergraph(queue, used_dataset, gpu_num, tp, exp_dir, partit
         'use_drug_readout_kan': tp.get('use_drug_readout_kan', False),
         'gnn_type': tp.get('gnn_type', 'gcn'),
         'num_layer': tp.get('num_layer', 5),
+        'paper_node_feature_dim': tp.get('paper_node_feature_dim'),
+        'paper_edge_feature_dim': tp.get('paper_edge_feature_dim'),
         'drug_jk': tp.get('drug_jk', 'last'),
         'graph_pooling': tp.get('graph_pooling', 'mean'),
         'decoder_type': tp.get('decoder_type', 'kan' if hypergraph_mode == 'kan_mlp' else 'mlp'),
+        'pair_edge_mode': tp.get('pair_edge_mode', 'shared_drug'),
+        'pair_knn_k': tp.get('pair_knn_k', 5),
+        'pair_edge_seed': tp.get('pair_edge_seed', tp.get('seed', 42)),
+        'cell_encoder_type': tp.get('cell_encoder_type', 'mlp'),
+        'cell_graph_edge_index': cell_graph_edge_index,
+        'cell_graph_hidden': tp.get('cell_graph_hidden', 128),
+        'cell_graph_layers': tp.get('cell_graph_layers', 2),
+        'cell_graph_use_kan': tp.get('cell_graph_use_kan', False),
         'task': task
     }
 
@@ -252,6 +303,11 @@ def run_exp_deepdds_hypergraph(queue, used_dataset, gpu_num, tp, exp_dir, partit
         hypergraph_model = DeepDDS_Hypergraph(**model_kwargs)
 
     hypergraph_model = hypergraph_model.to(device=device_gpu, dtype=fdtype)
+    drug_features_are_raw_float = (
+        tp.get('gnn_type') in ['paper_kagcn', 'ka_gcn_paper', 'kagcn_paper']
+        and tp.get('paper_node_feature_dim') is not None
+        and tp.get('paper_edge_feature_dim') is not None
+    )
 
     model_name = hypergraph_mode
     models = [(hypergraph_model, f'{model_name}_model')]
@@ -331,10 +387,15 @@ def run_exp_deepdds_hypergraph(queue, used_dataset, gpu_num, tp, exp_dir, partit
 
         for i_batch, batch in enumerate(train_loader):
             batch = batch.to(device_gpu)
+            batch.expression = expression_scaler.transform_ondevice(
+                batch.expression, device=device_gpu
+            )
 
-            # 确保节点特征是long类型（用于embedding）
-            batch.x_a = batch.x_a.long()
-            batch.x_b = batch.x_b.long()
+            # OGB categorical atom features use embedding tables; paper-style
+            # raw 92/21-dim features stay float.
+            if not drug_features_are_raw_float:
+                batch.x_a = batch.x_a.long()
+                batch.x_b = batch.x_b.long()
             if task == 'regression':
                 pred_scores = hypergraph_model(batch)
                 target_scores_raw = get_regression_target(batch, target_score).to(device_gpu)
@@ -380,10 +441,13 @@ def run_exp_deepdds_hypergraph(queue, used_dataset, gpu_num, tp, exp_dir, partit
 
             for i_batch, batch in enumerate(loaders[dsettype]):
                 batch = batch.to(device_gpu)
+                batch.expression = expression_scaler.transform_ondevice(
+                    batch.expression, device=device_gpu
+                )
 
-                # 确保节点特征是long类型（用于embedding）
-                batch.x_a = batch.x_a.long()
-                batch.x_b = batch.x_b.long()
+                if not drug_features_are_raw_float:
+                    batch.x_a = batch.x_a.long()
+                    batch.x_b = batch.x_b.long()
                 with torch.no_grad():
                     if task == 'regression':
                         batch_pred_scores = hypergraph_model(batch)

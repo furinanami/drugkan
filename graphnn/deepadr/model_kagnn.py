@@ -6,10 +6,87 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from torch_geometric.nn import global_add_pool, global_mean_pool, global_max_pool, GlobalAttention
+from ogb.graphproppred.mol_encoder import AtomEncoder, BondEncoder
 
 from .kagnn_node import KAGNN_node, KAGNN_node_Virtualnode
 from .model_attn_siamese import FeatureEmbAttention as GNNLayerEmbAttention
 from .kan_layers import KANLinear
+from .kagnn_conv import KAGCNConv
+
+
+class PaperKAGCNNodeEncoder(nn.Module):
+    """
+    KA-GCN drug node encoder following the paper equations.
+
+    The paper uses KAN in three places for KA-GCN:
+    1. node initialization: KAN(atom_feature || mean(incident_bond_feature))
+    2. message passing: h_v + KAN(h_v || mean(h_u, u in N(v)))
+    3. readout: KAN(mean_v h_v)
+
+    In this project molecular edges are RDKit covalent bonds only; the existing
+    OGB atom/bond encoders convert categorical atom and bond descriptors to
+    dense features before the KAN modules.
+    """
+    def __init__(self, num_layer, emb_dim, drop_ratio=0.5,
+                 use_kan=True, kan_type='fourier',
+                 node_feature_dim=None, edge_feature_dim=None):
+        super().__init__()
+        self.num_layer = num_layer
+        self.emb_dim = emb_dim
+        self.drop_ratio = drop_ratio
+        self.use_kan = use_kan
+        self.raw_feature_mode = node_feature_dim is not None and edge_feature_dim is not None
+
+        if self.raw_feature_mode:
+            self.atom_encoder = None
+            self.bond_encoder = None
+            init_in = int(node_feature_dim) + int(edge_feature_dim)
+            self.edge_feature_dim = int(edge_feature_dim)
+        else:
+            self.atom_encoder = AtomEncoder(emb_dim)
+            self.bond_encoder = BondEncoder(emb_dim=emb_dim)
+            init_in = 2 * emb_dim
+            self.edge_feature_dim = emb_dim
+
+        if use_kan:
+            self.node_init = KANLinear(init_in, emb_dim, kan_type=kan_type)
+        else:
+            self.node_init = nn.Linear(init_in, emb_dim)
+
+        self.convs = nn.ModuleList([
+            KAGCNConv(emb_dim, emb_dim, use_kan=use_kan, kan_type=kan_type)
+            for _ in range(num_layer)
+        ])
+
+    def _mean_incident_bonds(self, edge_index, edge_attr, num_nodes):
+        if edge_attr is None or edge_attr.numel() == 0 or edge_index.numel() == 0:
+            return edge_index.new_zeros((num_nodes, self.edge_feature_dim), dtype=torch.float32)
+
+        if self.raw_feature_mode:
+            edge_emb = edge_attr.float()
+        else:
+            edge_emb = self.bond_encoder(edge_attr.long())
+        dst = edge_index[1]
+        out = edge_emb.new_zeros(num_nodes, edge_emb.size(-1))
+        counts = edge_emb.new_zeros(num_nodes, 1)
+        out.index_add_(0, dst, edge_emb)
+        counts.index_add_(0, dst, edge_emb.new_ones(edge_emb.size(0), 1))
+        return out / counts.clamp(min=1)
+
+    def forward(self, x, edge_index, edge_attr):
+        if self.raw_feature_mode:
+            atom_emb = x.float()
+        else:
+            atom_emb = self.atom_encoder(x.long())
+        bond_mean = self._mean_incident_bonds(edge_index, edge_attr, atom_emb.size(0))
+        h = self.node_init(torch.cat([atom_emb, bond_mean], dim=-1))
+
+        for layer_idx, conv in enumerate(self.convs):
+            h = conv(h, edge_index)
+            if layer_idx < len(self.convs) - 1:
+                h = F.dropout(h, self.drop_ratio, training=self.training)
+
+        return h
 
 
 class KAGNN(nn.Module):
@@ -48,7 +125,8 @@ class KAGNN(nn.Module):
     def __init__(self, num_layer=5, emb_dim=300, gnn_type='gat',
                  virtual_node=True, residual=False, drop_ratio=0.5,
                  JK="last", graph_pooling="mean", with_edge_attr=False,
-                 use_kan=False, kan_type='fourier', use_readout_kan=False):
+                 use_kan=False, kan_type='fourier', use_readout_kan=False,
+                 paper_node_feature_dim=None, paper_edge_feature_dim=None):
         super(KAGNN, self).__init__()
 
         self.num_layer = num_layer
@@ -60,6 +138,7 @@ class KAGNN(nn.Module):
         self.use_kan = use_kan
         self.kan_type = kan_type
         self.use_readout_kan = use_readout_kan
+        self.paper_kagcn = gnn_type in ['paper_kagcn', 'ka_gcn_paper', 'kagcn_paper']
 
         if self.num_layer < 2:
             raise ValueError("Number of GNN layers must be greater than 1.")
@@ -67,7 +146,16 @@ class KAGNN(nn.Module):
         node_jk = "multilayer" if JK == "concat_kan" else JK
 
         # GNN节点嵌入生成器
-        if virtual_node:
+        if self.paper_kagcn:
+            self.gnn_node = PaperKAGCNNodeEncoder(
+                num_layer, emb_dim, drop_ratio=drop_ratio,
+                use_kan=use_kan, kan_type=kan_type,
+                node_feature_dim=paper_node_feature_dim,
+                edge_feature_dim=paper_edge_feature_dim
+            )
+            self.with_edge_attr = True
+            self.use_readout_kan = use_kan
+        elif virtual_node:
             self.gnn_node = KAGNN_node_Virtualnode(
                 num_layer, emb_dim, JK=node_jk, drop_ratio=drop_ratio,
                 residual=residual, gnn_type=gnn_type,
@@ -82,7 +170,7 @@ class KAGNN(nn.Module):
             )
 
         # 层级池化注意力只用于 multilayer JK；concat_kan 直接拼接各层图表示后过 KAN。
-        if self.JK == "multilayer":
+        if self.JK == "multilayer" and not self.paper_kagcn:
             self.layer_pooling = GNNLayerEmbAttention(emb_dim)
 
         # 图级池化函数
@@ -108,7 +196,7 @@ class KAGNN(nn.Module):
             self.readout_kan = KANLinear(emb_dim, emb_dim, kan_type=kan_type)
             self.readout_norm = nn.LayerNorm(emb_dim)
 
-        if self.JK == "concat_kan":
+        if self.JK == "concat_kan" and not self.paper_kagcn:
             self.layer_concat_kan = KANLinear(num_layer * emb_dim, emb_dim, kan_type=kan_type)
             self.layer_concat_norm = nn.LayerNorm(emb_dim)
 
@@ -132,13 +220,15 @@ class KAGNN(nn.Module):
             h_graph: 图级嵌入 [batch_size, emb_dim]
         """
         # 生成节点嵌入
-        if self.with_edge_attr:
+        if self.paper_kagcn:
+            h_node = self.gnn_node(x, edge_index, edge_attr)
+        elif self.with_edge_attr:
             h_node = self.gnn_node(x, edge_index, edge_attr)
         else:
             h_node = self.gnn_node(x, edge_index, None)
 
         # 图级池化
-        if self.JK in ["multilayer", "concat_kan"]:
+        if (not self.paper_kagcn) and self.JK in ["multilayer", "concat_kan"]:
             if self.JK == "concat_kan":
                 h_node = h_node[1:]
 
@@ -165,6 +255,8 @@ class KAGNN(nn.Module):
             h_graph = self.pool(h_node, batch)
 
         if self.use_readout_kan:
-            h_graph = self.readout_norm(self.readout_kan(h_graph))
+            h_graph = self.readout_kan(h_graph)
+            if not self.paper_kagcn:
+                h_graph = self.readout_norm(h_graph)
 
         return h_graph

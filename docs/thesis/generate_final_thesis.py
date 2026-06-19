@@ -17,13 +17,16 @@ from pathlib import Path
 try:
     from docx import Document
     from docx.enum.section import WD_SECTION
+    from docx.enum.table import WD_CELL_VERTICAL_ALIGNMENT, WD_TABLE_ALIGNMENT
     from docx.enum.text import WD_ALIGN_PARAGRAPH, WD_TAB_ALIGNMENT, WD_TAB_LEADER
     from docx.oxml import OxmlElement
     from docx.oxml.ns import qn
-    from docx.shared import Cm, Inches, Pt
+    from docx.shared import Cm, Inches, Pt, RGBColor
 except Exception:  # pragma: no cover - optional generation path
     Document = None
     WD_SECTION = None
+    WD_CELL_VERTICAL_ALIGNMENT = None
+    WD_TABLE_ALIGNMENT = None
     WD_ALIGN_PARAGRAPH = None
     WD_TAB_ALIGNMENT = None
     WD_TAB_LEADER = None
@@ -32,6 +35,7 @@ except Exception:  # pragma: no cover - optional generation path
     Cm = None
     Inches = None
     Pt = None
+    RGBColor = None
 
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -42,9 +46,16 @@ OUT_ODT = THESIS_DIR / "final_thesis.odt"
 OUT_DOCX = THESIS_DIR / "final_thesis.docx"
 OUT_PDF = THESIS_DIR / "final_thesis.pdf"
 
+EAST_ASIA_FONT = "SimSun"
+HEADING_FONT = "SimHei"
+LATIN_FONT = "Times New Roman"
+MATH_FONT = "Cambria Math"
+CITATION_RE = re.compile(r"\[\d+(?:-\d+)?\]")
+CAPTION_RE = re.compile(r"^(图|表)\s*\d+\s*(.*)$")
+
 
 COVER = {
-    "title_cn": "基于KAN超图的药物协同预测研究",
+    "title_cn": "基于 KAN 超图的药物协同预测研究",
     "title_en": "KAN-Enhanced Hypergraph Neural Networks for Drug Synergy Prediction",
     "name": "赵新宇",
     "student_id": "202200130116",
@@ -59,15 +70,15 @@ COVER = {
 EN_ABSTRACT = """
 Drug combination therapy is an important strategy for cancer treatment, but exhaustive wet-lab screening of all possible drug pairs, dose settings, and cellular contexts is prohibitively expensive. This thesis studies how Kolmogorov-Arnold Networks (KANs) can be used in drug synergy prediction. Initial experiments show that directly replacing the final multilayer perceptron with a KAN prediction head does not consistently improve performance, suggesting that KAN is not a universal drop-in replacement for high-dimensional fused representations. Based on this observation, this work investigates a more structured design: combining KAN with molecular graph encoders, hypergraph message passing, and drug-pair aggregation graphs.
 
-Using DrugComb-derived drug combination data, the study evaluates classification and Loewe-score regression tasks under random and cold-drug splits. The results indicate that random split mainly reflects interpolation over known drugs, while cold-drug split is more relevant to realistic screening of unseen compounds. Among the explored variants, HgKAN-Agg, which first aggregates two drug embeddings into a drug-pair node and then performs KAN-enhanced graph message passing with the cell node, is the only main KAN variant that improves both classification and regression metrics over the MLP baseline in the cold-drug setting. In contrast, direct KAN heads, KAN hypergraph variants, and stacking DrugKAN with HgKAN-Agg do not always improve performance, showing that the placement of KAN is crucial.
+Using DrugComb-derived drug combination data, the study evaluates classification and Loewe-score regression tasks under Random split and Cold-drug split settings. The results indicate that Random split mainly reflects interpolation over known drugs, while Cold-drug split is more relevant to realistic screening of unseen compounds. Among the explored variants, HgKAN-Agg, which first aggregates two drug embeddings into a drug-pair node and then performs KAN-enhanced graph message passing with the cell node, is the only main KAN variant that improves both classification and regression metrics over the MLP baseline in the Cold-drug split setting. In contrast, direct KAN heads, KAN hypergraph variants, and stacking DrugKAN with HgKAN-Agg do not always improve performance, showing that the placement of KAN is crucial.
 
-Beyond predictive accuracy, this thesis builds an interpretability chain consisting of KAN edge-function visualization, drug perturbation analysis, drug-pair retention response curves, and atom-level saliency. A cold-drug case study on Lenalidomide and mitomycin C in the IGROV1 cell line shows that the model prediction depends strongly on drug-pair information, and the highlighted molecular regions overlap with known pharmacologically relevant substructures. Overall, the results support a cautious conclusion: in drug synergy prediction, KAN is more suitable as a learnable nonlinear message function inside structured graph or hypergraph modules than as an unstructured replacement for an MLP head.
+Beyond predictive accuracy, this thesis builds an interpretability chain consisting of KAN edge-function visualization, drug perturbation analysis, drug-pair retention response curves, and atom-level saliency. A Cold-drug split case study on Lenalidomide and mitomycin C in the IGROV1 cell line shows that the model prediction depends strongly on drug-pair information, and the highlighted molecular regions overlap with known pharmacologically relevant substructures. Overall, the results support a cautious conclusion: in drug synergy prediction, KAN is more suitable as a learnable nonlinear message function inside structured graph or hypergraph modules than as an unstructured replacement for an MLP head.
 """.strip()
 
 
 EN_KEYWORDS = (
-    "drug synergy prediction; Kolmogorov-Arnold Network; graph neural network; "
-    "hypergraph neural network; interpretable machine learning"
+    "drug synergy prediction, graph neural network, hypergraph neural network, "
+    "Kolmogorov-Arnold Network, interpretable machine learning"
 )
 
 
@@ -138,6 +149,32 @@ def esc(text: str) -> str:
     return html.escape(text, quote=False)
 
 
+def citation_href(citation_text: str) -> str:
+    match = re.match(r"\[(\d+)", citation_text)
+    return f"ref-{match.group(1)}" if match else "refs"
+
+
+def esc_inline(text: str) -> str:
+    out: list[str] = []
+    pos = 0
+    for match in INLINE_MATH_RE.finditer(text):
+        if match.start() > pos:
+            out.append(esc_text_with_citations(text[pos:match.start()]))
+        out.append(render_math_html(match.group(1)))
+        pos = match.end()
+    if pos < len(text):
+        out.append(esc_text_with_citations(text[pos:]))
+    return "".join(out)
+
+
+def esc_text_with_citations(text: str) -> str:
+    escaped = esc(text)
+    return CITATION_RE.sub(
+        lambda m: f"<a class='citation' href='#{citation_href(m.group(0))}'><sup>{m.group(0)}</sup></a>",
+        escaped,
+    )
+
+
 def render_table(lines: list[str]) -> str:
     rows = []
     for line in lines:
@@ -164,11 +201,13 @@ def render_markdown(md: str) -> str:
     lines = md.splitlines()
     i = 0
     paragraph: list[str] = []
+    pending_figure = False
+    expect_figure_note = False
 
     def flush_paragraph() -> None:
         if paragraph:
             text = " ".join(x.strip() for x in paragraph).strip()
-            out.append(f"<p>{esc(text)}</p>")
+            out.append(f"<p>{esc_inline(text)}</p>")
             paragraph.clear()
 
     while i < len(lines):
@@ -178,6 +217,37 @@ def render_markdown(md: str) -> str:
             flush_paragraph()
             i += 1
             continue
+
+        if is_caption_line(stripped, "表") and next_nonempty_line(lines, i + 1).startswith("|"):
+            flush_paragraph()
+            out.append(f"<p class='caption'>{esc_inline(stripped)}</p>")
+            i += 1
+            continue
+
+        if is_caption_line(stripped, "图") and pending_figure:
+            flush_paragraph()
+            out.append(f"<p class='caption'>{esc_inline(stripped)}</p>")
+            pending_figure = False
+            expect_figure_note = True
+            i += 1
+            continue
+
+        if expect_figure_note:
+            if is_markdown_block_boundary(stripped, lines, i):
+                expect_figure_note = False
+            else:
+                flush_paragraph()
+                note_lines = []
+                while i < len(lines):
+                    candidate = lines[i].strip()
+                    if not candidate or is_markdown_block_boundary(candidate, lines, i):
+                        break
+                    note_lines.append(lines[i])
+                    i += 1
+                note = ensure_note_prefix(" ".join(x.strip() for x in note_lines).strip())
+                out.append(f"<p class='figure-note'>{esc_inline(note)}</p>")
+                expect_figure_note = False
+                continue
 
         if stripped.startswith("|"):
             flush_paragraph()
@@ -196,6 +266,7 @@ def render_markdown(md: str) -> str:
             out.append(
                 f'<figure><img src="{src}" alt="{esc(alt)}"/></figure>'
             )
+            pending_figure = True
             i += 1
             continue
 
@@ -217,7 +288,7 @@ def render_markdown(md: str) -> str:
             while i < len(lines) and lines[i].strip().startswith("- "):
                 items.append(lines[i].strip()[2:])
                 i += 1
-            out.append("<ul>" + "".join(f"<li>{esc(x)}</li>" for x in items) + "</ul>")
+            out.append("<ul>" + "".join(f"<li>{esc_inline(x)}</li>" for x in items) + "</ul>")
             continue
 
         if re.match(r"\d+\.\s+", stripped):
@@ -226,20 +297,21 @@ def render_markdown(md: str) -> str:
             while i < len(lines) and re.match(r"\d+\.\s+", lines[i].strip()):
                 items.append(re.sub(r"^\d+\.\s+", "", lines[i].strip()))
                 i += 1
-            out.append("<ol>" + "".join(f"<li>{esc(x)}</li>" for x in items) + "</ol>")
+            out.append("<ol>" + "".join(f"<li>{esc_inline(x)}</li>" for x in items) + "</ol>")
             continue
 
-        if stripped in {"\\\\[", "\\[", "\\\\]", "\\]"} or stripped.startswith("\\\\["):
+        if is_math_block_start(stripped):
             flush_paragraph()
             equation_lines = []
+            i += 1
             while i < len(lines):
-                equation_lines.append(lines[i].strip().strip("\\[]"))
-                if lines[i].strip() in {"\\\\]", "\\]"}:
+                if is_math_block_end(lines[i].strip()):
                     i += 1
                     break
+                equation_lines.append(lines[i].strip())
                 i += 1
-            eq = "\n".join(x for x in equation_lines if x)
-            out.append(f"<div class='equation'>{esc(eq)}</div>")
+            eq = " ".join(x for x in equation_lines if x)
+            out.append(f"<div class='equation'>{render_math_html(eq)}</div>")
             continue
 
         paragraph.append(line)
@@ -270,7 +342,7 @@ def build_html() -> str:
     body_html = render_markdown(body_md)
     toc_html = build_toc(body_md)
     refs_html = "\n".join(
-        f"<li>{esc(ref)}</li>" for ref in references
+        f'<li id="ref-{i}">{esc(ref)}</li>' for i, ref in enumerate(references, 1)
     )
 
     return f"""<!doctype html>
@@ -437,6 +509,24 @@ def build_html() -> str:
       padding: 0.10cm;
       vertical-align: top;
     }}
+    .caption {{
+      text-align: center;
+      text-indent: 0;
+      font-size: 10.5pt;
+      font-weight: bold;
+      margin-top: 0.15cm;
+      margin-bottom: 0.15cm;
+    }}
+    .figure-note {{
+      text-indent: 0;
+      font-size: 10.5pt;
+      line-height: 1.15;
+      margin: -0.02cm 0.74cm 0.25cm 0.74cm;
+    }}
+    .citation {{
+      color: inherit;
+      text-decoration: none;
+    }}
     figure {{
       margin: 0.4cm auto;
       text-align: center;
@@ -529,12 +619,113 @@ def build_html() -> str:
 """
 
 
-def set_run_font(run, size=12, bold=False, name="SimSun") -> None:
-    run.font.name = name
-    if qn is not None:
-        run._element.rPr.rFonts.set(qn("w:eastAsia"), name)
+def set_run_font(run, size=12, bold=False, name=EAST_ASIA_FONT, ascii_name: str | None = None) -> None:
+    ascii_font = ascii_name or (LATIN_FONT if name in {EAST_ASIA_FONT, HEADING_FONT} else name)
+    run.font.name = ascii_font
+    if qn is not None and OxmlElement is not None:
+        r_pr = run._element.get_or_add_rPr()
+        r_fonts = r_pr.rFonts
+        if r_fonts is None:
+            r_fonts = OxmlElement("w:rFonts")
+            r_pr.append(r_fonts)
+        r_fonts.set(qn("w:eastAsia"), name)
+        r_fonts.set(qn("w:ascii"), ascii_font)
+        r_fonts.set(qn("w:hAnsi"), ascii_font)
+        r_fonts.set(qn("w:cs"), ascii_font)
     run.font.size = Pt(size)
     run.font.bold = bold
+    if RGBColor is not None:
+        run.font.color.rgb = RGBColor(0, 0, 0)
+
+
+def set_run_superscript(run) -> None:
+    run.font.superscript = True
+    if OxmlElement is not None and qn is not None:
+        r_pr = run._element.get_or_add_rPr()
+        vert_align = r_pr.find(qn("w:vertAlign"))
+        if vert_align is None:
+            vert_align = OxmlElement("w:vertAlign")
+            r_pr.append(vert_align)
+        vert_align.set(qn("w:val"), "superscript")
+
+
+def set_run_subscript(run) -> None:
+    run.font.subscript = True
+    if OxmlElement is not None and qn is not None:
+        r_pr = run._element.get_or_add_rPr()
+        vert_align = r_pr.find(qn("w:vertAlign"))
+        if vert_align is None:
+            vert_align = OxmlElement("w:vertAlign")
+            r_pr.append(vert_align)
+        vert_align.set(qn("w:val"), "subscript")
+
+
+def add_formatted_text_run(paragraph, text: str, size=12, bold=False, name=EAST_ASIA_FONT, superscript=False) -> None:
+    if not text:
+        return
+    run = paragraph.add_run(text)
+    set_run_font(run, size=size, bold=bold, name=name)
+    if superscript:
+        set_run_superscript(run)
+
+
+def add_seq_field(paragraph, seq_name: str, result: str, size=10.5) -> None:
+    if OxmlElement is None or qn is None:
+        add_formatted_text_run(paragraph, result, size=size, name=LATIN_FONT)
+        return
+
+    run_begin = paragraph.add_run()
+    fld_begin = OxmlElement("w:fldChar")
+    fld_begin.set(qn("w:fldCharType"), "begin")
+    run_begin._r.append(fld_begin)
+    set_run_font(run_begin, size=size, name=LATIN_FONT)
+
+    run_instr = paragraph.add_run()
+    instr = OxmlElement("w:instrText")
+    instr.set(qn("xml:space"), "preserve")
+    instr.text = f" SEQ {seq_name} \\* ARABIC "
+    run_instr._r.append(instr)
+    set_run_font(run_instr, size=size, name=LATIN_FONT)
+
+    run_sep = paragraph.add_run()
+    fld_sep = OxmlElement("w:fldChar")
+    fld_sep.set(qn("w:fldCharType"), "separate")
+    run_sep._r.append(fld_sep)
+    set_run_font(run_sep, size=size, name=LATIN_FONT)
+
+    run_result = paragraph.add_run(result)
+    set_run_font(run_result, size=size, name=LATIN_FONT)
+
+    run_end = paragraph.add_run()
+    fld_end = OxmlElement("w:fldChar")
+    fld_end.set(qn("w:fldCharType"), "end")
+    run_end._r.append(fld_end)
+    set_run_font(run_end, size=size, name=LATIN_FONT)
+
+
+def add_runs_with_citations(paragraph, text: str, size=12, bold=False, name=EAST_ASIA_FONT) -> None:
+    pos = 0
+    for match in CITATION_RE.finditer(text):
+        if match.start() > pos:
+            add_formatted_text_run(
+                paragraph,
+                text[pos:match.start()],
+                size=size,
+                bold=bold,
+                name=name,
+            )
+        add_internal_hyperlink(
+            paragraph,
+            match.group(0),
+            anchor=citation_anchor(match.group(0)),
+            size=max(size - 1, 8),
+            bold=bold,
+            name=LATIN_FONT,
+            superscript=True,
+        )
+        pos = match.end()
+    if pos < len(text):
+        add_formatted_text_run(paragraph, text[pos:], size=size, bold=bold, name=name)
 
 
 def set_section_layout(section) -> None:
@@ -572,7 +763,7 @@ def add_page_number_field(paragraph) -> None:
     run._r.append(fld_begin)
     run._r.append(instr)
     run._r.append(fld_end)
-    set_run_font(run, size=10.5)
+    set_run_font(run, size=9, name=LATIN_FONT)
 
 
 _BOOKMARK_ID = 0
@@ -584,7 +775,7 @@ def next_bookmark_id() -> int:
     return _BOOKMARK_ID
 
 
-def add_bookmarked_run(paragraph, text: str, bookmark: str | None = None, size=12, bold=False, name="SimSun"):
+def add_bookmarked_run(paragraph, text: str, bookmark: str | None = None, size=12, bold=False, name=EAST_ASIA_FONT):
     if bookmark and OxmlElement is not None and qn is not None:
         bookmark_id = next_bookmark_id()
         start = OxmlElement("w:bookmarkStart")
@@ -602,10 +793,20 @@ def add_bookmarked_run(paragraph, text: str, bookmark: str | None = None, size=1
     return run
 
 
-def add_internal_hyperlink(paragraph, text: str, anchor: str, size=12, bold=False) -> None:
+def add_internal_hyperlink(
+    paragraph,
+    text: str,
+    anchor: str,
+    size=12,
+    bold=False,
+    name=EAST_ASIA_FONT,
+    superscript=False,
+) -> None:
     if OxmlElement is None or qn is None:
         run = paragraph.add_run(text)
-        set_run_font(run, size=size, bold=bold)
+        set_run_font(run, size=size, bold=bold, name=name)
+        if superscript:
+            set_run_superscript(run)
         return
 
     hyperlink = OxmlElement("w:hyperlink")
@@ -615,13 +816,19 @@ def add_internal_hyperlink(paragraph, text: str, anchor: str, size=12, bold=Fals
     r_pr = OxmlElement("w:rPr")
 
     r_fonts = OxmlElement("w:rFonts")
-    for key in ("w:ascii", "w:hAnsi", "w:eastAsia"):
-        r_fonts.set(qn(key), "SimSun")
+    ascii_font = LATIN_FONT if name in {EAST_ASIA_FONT, HEADING_FONT} else name
+    r_fonts.set(qn("w:eastAsia"), name)
+    for key in ("w:ascii", "w:hAnsi", "w:cs"):
+        r_fonts.set(qn(key), ascii_font)
     r_pr.append(r_fonts)
 
     if bold:
         r_pr.append(OxmlElement("w:b"))
         r_pr.append(OxmlElement("w:bCs"))
+    if superscript:
+        vert_align = OxmlElement("w:vertAlign")
+        vert_align.set(qn("w:val"), "superscript")
+        r_pr.append(vert_align)
 
     color = OxmlElement("w:color")
     color.set(qn("w:val"), "000000")
@@ -645,11 +852,13 @@ def add_internal_hyperlink(paragraph, text: str, anchor: str, size=12, bold=Fals
     paragraph._p.append(hyperlink)
 
 
+def citation_anchor(citation_text: str) -> str:
+    match = re.match(r"\[(\d+)", citation_text)
+    return f"bm_ref_{match.group(1)}" if match else "bm_refs"
+
+
 def collect_toc_entries(body_md: str) -> list[tuple[str, int, str]]:
-    entries: list[tuple[str, int, str]] = [
-        ("摘要", 1, "bm_abs_cn"),
-        ("ABSTRACT", 1, "bm_abs_en"),
-    ]
+    entries: list[tuple[str, int, str]] = []
     idx = 1
     for line in body_md.splitlines():
         if line.startswith("## "):
@@ -660,12 +869,18 @@ def collect_toc_entries(body_md: str) -> list[tuple[str, int, str]]:
             title = line[4:].strip()
             entries.append((title, 2, f"bm_sec_{idx}"))
             idx += 1
+        elif line.startswith("#### "):
+            title = line[5:].strip()
+            entries.append((title, 3, f"bm_sec_{idx}"))
+            idx += 1
     entries.append(("参考文献", 1, "bm_refs"))
     entries.append(("致谢", 1, "bm_ack"))
     return entries
 
 
 INLINE_MATH_RE = re.compile(r"(?:\\\\|\\)\((.*?)(?:\\\\|\\)\)")
+LITERAL_LBRACE = "§LBRACE§"
+LITERAL_RBRACE = "§RBRACE§"
 
 
 def _subscript(text: str) -> str:
@@ -703,9 +918,9 @@ def _superscript(text: str) -> str:
     return "^" + text
 
 
-def clean_latex_math(expr: str) -> str:
+def normalize_latex_math(expr: str) -> str:
     s = expr.replace("\\\\", "\\").strip()
-    s = s.replace("\\{", "§LBRACE§").replace("\\}", "§RBRACE§")
+    s = s.replace("\\{", LITERAL_LBRACE).replace("\\}", LITERAL_RBRACE)
     s = re.sub(r"\\operatorname\{([^{}]+)\}", r"\1", s)
     s = re.sub(r"\\mathbb\{R\}", "ℝ", s)
     s = re.sub(r"\\mathcal\{N\}", "𝒩", s)
@@ -725,29 +940,108 @@ def clean_latex_math(expr: str) -> str:
     }
     for old, new in replacements.items():
         s = s.replace(old, new)
-    s = re.sub(r"_\{([^{}]+)\}", lambda m: _subscript(m.group(1)), s)
-    s = re.sub(r"\^\{([^{}]+)\}", lambda m: _superscript(m.group(1)), s)
-    s = re.sub(r"_([A-Za-z0-9])", lambda m: _subscript(m.group(1)), s)
-    s = re.sub(r"\^([A-Za-z0-9])", lambda m: _superscript(m.group(1)), s)
     s = re.sub(r"\\([A-Za-z]+)", r"\1", s)
-    s = s.replace("{", "").replace("}", "")
-    s = s.replace("§LBRACE§", "{").replace("§RBRACE§", "}")
     s = re.sub(r"\s+", " ", s)
     return s.strip()
 
 
-def add_runs_with_inline_math(paragraph, text: str, size=12, bold=False, name="SimSun") -> None:
+def restore_math_text(text: str) -> str:
+    text = text.replace("{", "").replace("}", "")
+    return text.replace(LITERAL_LBRACE, "{").replace(LITERAL_RBRACE, "}")
+
+
+def read_math_script_group(text: str, start: int) -> tuple[str, int]:
+    if start >= len(text):
+        return "", start
+    if text[start] != "{":
+        return text[start], start + 1
+
+    depth = 1
+    pos = start + 1
+    group: list[str] = []
+    while pos < len(text):
+        char = text[pos]
+        if char == "{":
+            depth += 1
+        elif char == "}":
+            depth -= 1
+            if depth == 0:
+                return "".join(group), pos + 1
+        group.append(char)
+        pos += 1
+    return "".join(group), pos
+
+
+def parse_math_tokens(expr: str) -> list[tuple[str, str]]:
+    s = normalize_latex_math(expr)
+    tokens: list[tuple[str, str]] = []
+    buf: list[str] = []
+    pos = 0
+
+    def flush() -> None:
+        if buf:
+            text = restore_math_text("".join(buf))
+            if text:
+                tokens.append((text, "normal"))
+            buf.clear()
+
+    while pos < len(s):
+        char = s[pos]
+        if char in {"_", "^"}:
+            flush()
+            group, next_pos = read_math_script_group(s, pos + 1)
+            text = restore_math_text(group)
+            if text:
+                tokens.append((text, "subscript" if char == "_" else "superscript"))
+            pos = next_pos
+            continue
+        buf.append(char)
+        pos += 1
+    flush()
+    return tokens
+
+
+def clean_latex_math(expr: str) -> str:
+    return "".join(text for text, _ in parse_math_tokens(expr)).strip()
+
+
+def render_math_html(expr: str) -> str:
+    parts: list[str] = []
+    for text, kind in parse_math_tokens(expr):
+        if kind == "subscript":
+            parts.append(f"<sub>{esc(text)}</sub>")
+        elif kind == "superscript":
+            parts.append(f"<sup>{esc(text)}</sup>")
+        else:
+            parts.append(esc(text))
+    return f"<span class='math'>{''.join(parts)}</span>"
+
+
+def add_runs_with_inline_math(paragraph, text: str, size=12, bold=False, name=EAST_ASIA_FONT) -> None:
     pos = 0
     for match in INLINE_MATH_RE.finditer(text):
         if match.start() > pos:
-            run = paragraph.add_run(text[pos:match.start()])
-            set_run_font(run, size=size, bold=bold, name=name)
-        run = paragraph.add_run(clean_latex_math(match.group(1)))
-        set_run_font(run, size=size, bold=bold, name="Cambria Math")
+            add_runs_with_citations(
+                paragraph,
+                text[pos:match.start()],
+                size=size,
+                bold=bold,
+                name=name,
+            )
+        add_math_runs(paragraph, match.group(1), size=size, bold=bold)
         pos = match.end()
     if pos < len(text):
-        run = paragraph.add_run(text[pos:])
-        set_run_font(run, size=size, bold=bold, name=name)
+        add_runs_with_citations(paragraph, text[pos:], size=size, bold=bold, name=name)
+
+
+def add_math_runs(paragraph, expr: str, size=12, bold=False) -> None:
+    for token, kind in parse_math_tokens(expr):
+        run = paragraph.add_run(token)
+        set_run_font(run, size=size, bold=bold, name=MATH_FONT)
+        if kind == "subscript":
+            set_run_subscript(run)
+        elif kind == "superscript":
+            set_run_superscript(run)
 
 
 def is_math_block_start(text: str) -> bool:
@@ -758,13 +1052,21 @@ def is_math_block_end(text: str) -> bool:
     return text in {"\\\\]", "\\]"}
 
 
-def add_equation_docx(doc, expr: str) -> None:
+def add_equation_docx(doc, expr: str, number: str | None = None) -> None:
     p = doc.add_paragraph()
-    p.alignment = WD_ALIGN_PARAGRAPH.CENTER
     p.paragraph_format.line_spacing = 1.5
     p.paragraph_format.space_after = Pt(3)
-    run = p.add_run(clean_latex_math(expr))
-    set_run_font(run, size=12, name="Cambria Math")
+    if WD_TAB_ALIGNMENT is not None:
+        p.paragraph_format.tab_stops.add_tab_stop(Cm(7.5), WD_TAB_ALIGNMENT.CENTER)
+        p.paragraph_format.tab_stops.add_tab_stop(Cm(15.0), WD_TAB_ALIGNMENT.RIGHT)
+        run = p.add_run("\t")
+        set_run_font(run, size=12, name=MATH_FONT)
+    else:
+        p.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    add_math_runs(p, expr, size=12)
+    if number:
+        run = p.add_run("\t" + number)
+        set_run_font(run, size=12, name=EAST_ASIA_FONT)
 
 
 def add_center_page_number_footer(section, fmt: str = "decimal", start: int = 1) -> None:
@@ -782,7 +1084,7 @@ def set_paragraph_body(paragraph, first_line=True) -> None:
         paragraph.paragraph_format.first_line_indent = Cm(0.74)
 
 
-def add_text_paragraph(doc, text, first_line=True, align=None, size=12, bold=False, name="SimSun") -> None:
+def add_text_paragraph(doc, text, first_line=True, align=None, size=12, bold=False, name=EAST_ASIA_FONT) -> None:
     p = doc.add_paragraph()
     if align is not None:
         p.alignment = align
@@ -790,39 +1092,130 @@ def add_text_paragraph(doc, text, first_line=True, align=None, size=12, bold=Fal
     add_runs_with_inline_math(p, text, size=size, bold=bold, name=name)
 
 
-def add_reference_paragraph(doc, text: str) -> None:
+def add_keyword_paragraph(
+    doc,
+    label: str,
+    content: str,
+    label_name=HEADING_FONT,
+    content_name=EAST_ASIA_FONT,
+) -> None:
+    p = doc.add_paragraph()
+    set_paragraph_body(p, first_line=False)
+    add_formatted_text_run(p, label, size=12, bold=True, name=label_name)
+    add_runs_with_inline_math(p, content, size=12, bold=False, name=content_name)
+
+
+def add_reference_paragraph(doc, text: str, bookmark: str | None = None) -> None:
     p = doc.add_paragraph()
     p.paragraph_format.line_spacing = 1.0
     p.paragraph_format.space_after = Pt(0)
-    run = p.add_run(text)
-    set_run_font(run, size=10.5, name="SimSun")
+    add_bookmarked_run(p, text, bookmark=bookmark, size=10.5, name=EAST_ASIA_FONT)
+
+
+def is_caption_line(text: str, prefix: str | None = None) -> bool:
+    match = CAPTION_RE.match(text.strip())
+    if not match:
+        return False
+    return prefix is None or match.group(1) == prefix
+
+
+def next_nonempty_line(lines: list[str], start: int) -> str:
+    for idx in range(start, len(lines)):
+        candidate = lines[idx].strip()
+        if candidate:
+            return candidate
+    return ""
+
+
+def is_markdown_block_boundary(text: str, lines: list[str] | None = None, idx: int = 0) -> bool:
+    if not text:
+        return True
+    if text.startswith(("## ", "### ", "#### ", "|", "![", "- ")):
+        return True
+    if is_math_block_start(text) or is_caption_line(text):
+        return True
+    if re.match(r"\d+\.\s+", text):
+        return True
+    return False
+
+
+def ensure_note_prefix(text: str) -> str:
+    stripped = text.strip()
+    if not stripped:
+        return stripped
+    if stripped.startswith("注："):
+        return stripped
+    if stripped.startswith("注:"):
+        return "注：" + stripped[2:].lstrip()
+    return "注：" + stripped
+
+
+def add_caption_docx(doc, text: str, kind: str | None = None) -> None:
+    p = doc.add_paragraph()
+    p.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    p.paragraph_format.line_spacing = 1.0
+    p.paragraph_format.space_before = Pt(3 if kind == "表" else 2)
+    p.paragraph_format.space_after = Pt(4 if kind == "图" else 3)
+    p.paragraph_format.keep_together = True
+    if kind == "表":
+        p.paragraph_format.keep_with_next = True
+    match = re.match(r"^(图|表)\s*(\d+)\s*(.*)$", text.strip())
+    if match:
+        caption_kind, number, rest = match.groups()
+        add_formatted_text_run(p, f"{caption_kind} ", size=10.5, bold=True, name=EAST_ASIA_FONT)
+        add_seq_field(
+            p,
+            "Figure" if caption_kind == "图" else "Table",
+            result=number,
+            size=10.5,
+        )
+        for run in p.runs:
+            run.font.bold = True
+        add_runs_with_inline_math(p, f" {rest}".rstrip(), size=10.5, bold=True, name=EAST_ASIA_FONT)
+    else:
+        run = p.add_run(text.strip())
+        set_run_font(run, size=10.5, bold=True, name=EAST_ASIA_FONT)
+
+
+def add_figure_note_docx(doc, text: str) -> None:
+    p = doc.add_paragraph()
+    p.alignment = WD_ALIGN_PARAGRAPH.LEFT
+    p.paragraph_format.line_spacing = 1.0
+    p.paragraph_format.first_line_indent = None
+    p.paragraph_format.left_indent = Cm(0.74)
+    p.paragraph_format.right_indent = Cm(0.74)
+    p.paragraph_format.space_before = Pt(0)
+    p.paragraph_format.space_after = Pt(6)
+    p.paragraph_format.keep_together = True
+    add_runs_with_inline_math(p, ensure_note_prefix(text), size=10.5, name=EAST_ASIA_FONT)
 
 
 def add_center_title(doc, text, size=18, bold=True, bookmark: str | None = None) -> None:
     p = doc.add_paragraph()
     p.alignment = WD_ALIGN_PARAGRAPH.CENTER
     p.paragraph_format.space_after = Pt(12)
-    add_bookmarked_run(p, text, bookmark=bookmark, size=size, bold=bold, name="SimHei")
+    add_bookmarked_run(p, text, bookmark=bookmark, size=size, bold=bold, name=HEADING_FONT)
 
 
 def add_center_heading_title(doc, text, size=18, bold=True, bookmark: str | None = None) -> None:
     p = doc.add_paragraph(style="Heading 1")
     p.alignment = WD_ALIGN_PARAGRAPH.CENTER
     p.paragraph_format.space_after = Pt(12)
-    add_bookmarked_run(p, text, bookmark=bookmark, size=size, bold=bold, name="SimHei")
+    add_bookmarked_run(p, text, bookmark=bookmark, size=size, bold=bold, name=HEADING_FONT)
 
 
 def add_heading_docx(doc, text, level=1, bookmark: str | None = None) -> None:
     p = doc.add_paragraph(style=f"Heading {level}")
     p.paragraph_format.space_before = Pt(10 if level == 1 else 6)
     p.paragraph_format.space_after = Pt(6)
+    size_map = {1: 16, 2: 14, 3: 12}
     add_bookmarked_run(
         p,
         text,
         bookmark=bookmark,
-        size=16 if level == 1 else 14,
+        size=size_map.get(level, 12),
         bold=True,
-        name="SimHei",
+        name=HEADING_FONT,
     )
 
 
@@ -835,14 +1228,15 @@ def add_cover_docx(doc) -> None:
     p.paragraph_format.space_before = Cm(1.5)
     p.paragraph_format.space_after = Cm(2.0)
     run = p.add_run("毕 业 论 文（设 计）")
-    set_run_font(run, size=26, bold=True, name="SimHei")
+    set_run_font(run, size=26, bold=True, name=HEADING_FONT)
 
     add_text_paragraph(doc, "论文（设计）题目：", first_line=False, align=WD_ALIGN_PARAGRAPH.CENTER, size=14)
-    add_text_paragraph(doc, COVER["title_cn"], first_line=False, align=WD_ALIGN_PARAGRAPH.CENTER, size=18, bold=True, name="SimHei")
-    add_text_paragraph(doc, COVER["title_en"], first_line=False, align=WD_ALIGN_PARAGRAPH.CENTER, size=16, bold=True, name="SimHei")
+    add_text_paragraph(doc, COVER["title_cn"], first_line=False, align=WD_ALIGN_PARAGRAPH.CENTER, size=18, bold=True, name=HEADING_FONT)
+    add_text_paragraph(doc, COVER["title_en"], first_line=False, align=WD_ALIGN_PARAGRAPH.CENTER, size=16, bold=True, name=LATIN_FONT)
 
     table = doc.add_table(rows=6, cols=2)
-    table.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    table.alignment = WD_TABLE_ALIGNMENT.CENTER if WD_TABLE_ALIGNMENT is not None else 1
+    table.autofit = False
     fields = [
         ("姓    名", COVER["name"]),
         ("学    号", COVER["student_id"]),
@@ -852,13 +1246,22 @@ def add_cover_docx(doc) -> None:
         ("指导教师", COVER["advisor"]),
     ]
     for row, (label, value) in zip(table.rows, fields):
+        row.height = Cm(0.85)
         row.cells[0].text = label
         row.cells[1].text = value
+        row.cells[0].width = Cm(3.1)
+        row.cells[1].width = Cm(7.6)
+        set_cell_border(row.cells[0], top="nil", left="nil", bottom="nil", right="nil")
+        set_cell_border(row.cells[1], top="nil", left="nil", bottom="single", right="nil")
         for cell in row.cells:
+            if WD_CELL_VERTICAL_ALIGNMENT is not None:
+                cell.vertical_alignment = WD_CELL_VERTICAL_ALIGNMENT.CENTER
             for paragraph in cell.paragraphs:
                 paragraph.alignment = WD_ALIGN_PARAGRAPH.CENTER
+                paragraph.paragraph_format.line_spacing = 1.0
+                paragraph.paragraph_format.space_after = Pt(0)
                 for run in paragraph.runs:
-                    set_run_font(run, size=14)
+                    set_run_font(run, size=14, name=EAST_ASIA_FONT)
 
     add_text_paragraph(doc, COVER["date"], first_line=False, align=WD_ALIGN_PARAGRAPH.CENTER, size=14)
     doc.add_page_break()
@@ -892,7 +1295,7 @@ def add_abstract_docx(doc, abstract_cn, keywords_cn) -> None:
         para = para.strip()
         if para:
             add_text_paragraph(doc, para)
-    add_text_paragraph(doc, f"关键词：{keywords_cn}", first_line=False, bold=True)
+    add_keyword_paragraph(doc, "关键词：", keywords_cn, label_name=HEADING_FONT, content_name=EAST_ASIA_FONT)
     doc.add_page_break()
 
     add_center_title(doc, "ABSTRACT", bookmark="bm_abs_en")
@@ -900,7 +1303,7 @@ def add_abstract_docx(doc, abstract_cn, keywords_cn) -> None:
         para = para.strip()
         if para:
             add_text_paragraph(doc, para)
-    add_text_paragraph(doc, f"Key Words: {EN_KEYWORDS}", first_line=False, bold=True)
+    add_keyword_paragraph(doc, "Key Words: ", EN_KEYWORDS, label_name=LATIN_FONT, content_name=LATIN_FONT)
     doc.add_page_break()
 
 
@@ -910,7 +1313,7 @@ def add_toc_docx(doc, toc_entries, toc_pages=None) -> None:
         p = doc.add_paragraph()
         p.paragraph_format.line_spacing = 1.5
         p.paragraph_format.space_after = Pt(1)
-        p.paragraph_format.left_indent = Cm(0.74 if level == 2 else 0)
+        p.paragraph_format.left_indent = Cm({1: 0, 2: 0.74, 3: 1.48}.get(level, 0))
         if WD_TAB_ALIGNMENT is not None and WD_TAB_LEADER is not None:
             p.paragraph_format.tab_stops.add_tab_stop(
                 Cm(14.8),
@@ -925,6 +1328,84 @@ def add_toc_docx(doc, toc_entries, toc_pages=None) -> None:
     doc.add_page_break()
 
 
+def set_cell_border(cell, **kwargs) -> None:
+    if OxmlElement is None or qn is None:
+        return
+    tc_pr = cell._tc.get_or_add_tcPr()
+    tc_borders = tc_pr.find(qn("w:tcBorders"))
+    if tc_borders is None:
+        tc_borders = OxmlElement("w:tcBorders")
+        tc_pr.append(tc_borders)
+    for edge in ("top", "left", "bottom", "right"):
+        if edge not in kwargs:
+            continue
+        tag = "w:" + edge
+        element = tc_borders.find(qn(tag))
+        if element is None:
+            element = OxmlElement(tag)
+            tc_borders.append(element)
+        val = kwargs[edge]
+        element.set(qn("w:val"), val)
+        if val != "nil":
+            element.set(qn("w:sz"), "8")
+            element.set(qn("w:space"), "0")
+            element.set(qn("w:color"), "000000")
+
+
+def apply_three_line_table(table) -> None:
+    for row in table.rows:
+        for cell in row.cells:
+            set_cell_border(cell, top="nil", left="nil", bottom="nil", right="nil")
+    if not table.rows:
+        return
+    for cell in table.rows[0].cells:
+        set_cell_border(cell, top="single", bottom="single", left="nil", right="nil")
+    for cell in table.rows[-1].cells:
+        set_cell_border(cell, bottom="single", left="nil", right="nil")
+
+
+def set_table_row_cant_split(row) -> None:
+    if OxmlElement is None or qn is None:
+        return
+    tr_pr = row._tr.get_or_add_trPr()
+    if tr_pr.find(qn("w:cantSplit")) is None:
+        tr_pr.append(OxmlElement("w:cantSplit"))
+
+
+def set_table_row_header(row) -> None:
+    if OxmlElement is None or qn is None:
+        return
+    tr_pr = row._tr.get_or_add_trPr()
+    if tr_pr.find(qn("w:tblHeader")) is None:
+        tbl_header = OxmlElement("w:tblHeader")
+        tbl_header.set(qn("w:val"), "true")
+        tr_pr.append(tbl_header)
+
+
+def set_cell_width(cell, width_cm: float) -> None:
+    cell.width = Cm(width_cm)
+    if OxmlElement is None or qn is None:
+        return
+    tc_pr = cell._tc.get_or_add_tcPr()
+    tc_w = tc_pr.find(qn("w:tcW"))
+    if tc_w is None:
+        tc_w = OxmlElement("w:tcW")
+        tc_pr.append(tc_w)
+    tc_w.set(qn("w:w"), str(int(width_cm * 567)))
+    tc_w.set(qn("w:type"), "dxa")
+
+
+def table_col_widths(col_count: int) -> list[float]:
+    # Keep tables inside the 15 cm text area while giving model-name columns room.
+    if col_count == 3:
+        return [3.2, 6.0, 5.8]
+    if col_count == 5:
+        return [3.2, 2.8, 3.0, 2.8, 3.2]
+    if col_count == 6:
+        return [3.0, 3.2, 2.2, 2.2, 2.2, 2.2]
+    return [15.0 / col_count] * col_count
+
+
 def add_table_docx(doc, lines) -> None:
     rows = []
     for line in lines:
@@ -935,15 +1416,30 @@ def add_table_docx(doc, lines) -> None:
     if not rows:
         return
     table = doc.add_table(rows=len(rows), cols=max(len(r) for r in rows))
-    table.style = "Table Grid"
+    table.alignment = WD_TABLE_ALIGNMENT.CENTER if WD_TABLE_ALIGNMENT is not None else 1
+    table.autofit = False
+    col_widths = table_col_widths(max(len(r) for r in rows))
+    apply_three_line_table(table)
     for i, row in enumerate(rows):
+        table.rows[i].height = Cm(0.55)
+        set_table_row_cant_split(table.rows[i])
+        if i == 0:
+            set_table_row_header(table.rows[i])
         for j, cell_text in enumerate(row):
             cell = table.cell(i, j)
+            if WD_CELL_VERTICAL_ALIGNMENT is not None:
+                cell.vertical_alignment = WD_CELL_VERTICAL_ALIGNMENT.CENTER
+            set_cell_width(cell, col_widths[j] if j < len(col_widths) else 15.0 / len(col_widths))
             cell.text = cell_text
             for paragraph in cell.paragraphs:
                 paragraph.paragraph_format.line_spacing = 1.0
+                paragraph.paragraph_format.space_before = Pt(0)
+                paragraph.paragraph_format.space_after = Pt(0)
+                paragraph.paragraph_format.keep_together = True
+                paragraph.paragraph_format.keep_with_next = i < len(rows) - 1
+                paragraph.alignment = WD_ALIGN_PARAGRAPH.CENTER
                 for run in paragraph.runs:
-                    set_run_font(run, size=9, bold=(i == 0))
+                    set_run_font(run, size=10.5, bold=(i == 0), name=EAST_ASIA_FONT)
 
 
 def add_body_markdown_docx(doc, md: str, heading_entries) -> None:
@@ -951,6 +1447,11 @@ def add_body_markdown_docx(doc, md: str, heading_entries) -> None:
     i = 0
     paragraph = []
     heading_idx = 0
+    current_chapter = 0
+    equation_counts: dict[int, int] = {}
+    pending_table_caption: str | None = None
+    pending_figure = False
+    expect_figure_note = False
 
     def flush_paragraph() -> None:
         if paragraph:
@@ -965,8 +1466,41 @@ def add_body_markdown_docx(doc, md: str, heading_entries) -> None:
             i += 1
             continue
 
+        if is_caption_line(stripped, "表") and next_nonempty_line(lines, i + 1).startswith("|"):
+            flush_paragraph()
+            pending_table_caption = stripped
+            i += 1
+            continue
+
+        if is_caption_line(stripped, "图") and pending_figure:
+            flush_paragraph()
+            add_caption_docx(doc, stripped, kind="图")
+            pending_figure = False
+            expect_figure_note = True
+            i += 1
+            continue
+
+        if expect_figure_note:
+            if is_markdown_block_boundary(stripped, lines, i):
+                expect_figure_note = False
+            else:
+                flush_paragraph()
+                note_lines = []
+                while i < len(lines):
+                    candidate = lines[i].strip()
+                    if not candidate or is_markdown_block_boundary(candidate, lines, i):
+                        break
+                    note_lines.append(lines[i])
+                    i += 1
+                add_figure_note_docx(doc, " ".join(x.strip() for x in note_lines).strip())
+                expect_figure_note = False
+                continue
+
         if stripped.startswith("|"):
             flush_paragraph()
+            if pending_table_caption:
+                add_caption_docx(doc, pending_table_caption, kind="表")
+                pending_table_caption = None
             table_lines = []
             while i < len(lines) and lines[i].strip().startswith("|"):
                 table_lines.append(lines[i])
@@ -982,8 +1516,11 @@ def add_body_markdown_docx(doc, md: str, heading_entries) -> None:
             if image_path.exists():
                 p = doc.add_paragraph()
                 p.alignment = WD_ALIGN_PARAGRAPH.CENTER
+                p.paragraph_format.space_before = Pt(4)
+                p.paragraph_format.space_after = Pt(1)
                 run = p.add_run()
-                run.add_picture(str(image_path), width=Inches(6.2))
+                run.add_picture(str(image_path), width=Inches(5.9))
+                pending_figure = True
             i += 1
             continue
 
@@ -997,7 +1534,21 @@ def add_body_markdown_docx(doc, md: str, heading_entries) -> None:
                     break
                 equation_lines.append(lines[i].strip())
                 i += 1
-            add_equation_docx(doc, " ".join(equation_lines))
+            chapter = current_chapter or 0
+            equation_counts[chapter] = equation_counts.get(chapter, 0) + 1
+            if current_chapter:
+                number = f"({current_chapter}-{equation_counts[chapter]})"
+            else:
+                number = f"({equation_counts[chapter]})"
+            add_equation_docx(doc, " ".join(equation_lines), number=number)
+            continue
+
+        if stripped.startswith("#### "):
+            flush_paragraph()
+            bookmark = heading_entries[heading_idx][2] if heading_idx < len(heading_entries) else None
+            heading_idx += 1
+            add_heading_docx(doc, stripped[5:].strip(), level=3, bookmark=bookmark)
+            i += 1
             continue
 
         if stripped.startswith("### "):
@@ -1012,6 +1563,9 @@ def add_body_markdown_docx(doc, md: str, heading_entries) -> None:
             flush_paragraph()
             bookmark = heading_entries[heading_idx][2] if heading_idx < len(heading_entries) else None
             heading_idx += 1
+            match = re.match(r"##\s+(\d+)", stripped)
+            if match:
+                current_chapter = int(match.group(1))
             add_heading_docx(doc, stripped[3:].strip(), level=1, bookmark=bookmark)
             i += 1
             continue
@@ -1054,10 +1608,15 @@ def build_docx(toc_pages=None) -> bool:
 
     add_cover_docx(doc)
     add_grade_form_docx(doc)
-    front_section = doc.add_section(WD_SECTION.NEW_PAGE)
-    set_section_layout(front_section)
-    add_center_page_number_footer(front_section, fmt="upperRoman", start=1)
+
+    abstract_section = doc.add_section(WD_SECTION.NEW_PAGE)
+    set_section_layout(abstract_section)
+    abstract_section.footer.is_linked_to_previous = False
     add_abstract_docx(doc, abstract_cn, keywords_cn)
+
+    toc_section = doc.add_section(WD_SECTION.NEW_PAGE)
+    set_section_layout(toc_section)
+    add_center_page_number_footer(toc_section, fmt="upperRoman", start=1)
     add_toc_docx(doc, toc_entries, toc_pages=toc_pages)
 
     section = doc.add_section(WD_SECTION.NEW_PAGE)
@@ -1072,7 +1631,7 @@ def build_docx(toc_pages=None) -> bool:
     add_body_markdown_docx(doc, body_md, heading_entries)
     add_center_heading_title(doc, "参考文献", bookmark="bm_refs")
     for i, ref in enumerate(references, 1):
-        add_reference_paragraph(doc, f"[{i}] {ref}")
+        add_reference_paragraph(doc, f"[{i}] {ref}", bookmark=f"bm_ref_{i}")
 
     doc.add_page_break()
     add_center_heading_title(doc, "致    谢", bookmark="bm_ack")

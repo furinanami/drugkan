@@ -6,6 +6,7 @@ GraphNN 数据集生成脚本（优化版）
 
 import os
 import sys
+import argparse
 import numpy as np
 import pandas as pd
 import torch
@@ -21,9 +22,135 @@ from deepadr.dataset import *
 from deepadr.utilities import *
 from deepadr.chemfeatures import *
 
+def parse_args():
+    parser = argparse.ArgumentParser(description='Generate GraphNN drug synergy dataset.')
+    parser.add_argument('--drug_feature_mode', choices=['ogb', 'paper'], default='ogb',
+                        help='Drug graph features: ogb categorical features, or paper-style float atom/bond features. Default: ogb')
+    return parser.parse_args()
+
+
+def one_hot_with_unknown(value, choices):
+    vec = [0.0] * (len(choices) + 1)
+    try:
+        vec[choices.index(value)] = 1.0
+    except ValueError:
+        vec[-1] = 1.0
+    return vec
+
+
+def paper_atom_feature(atom):
+    """92-dim CGCNN-like atom feature from RDKit periodic descriptors."""
+    periodic = Chem.GetPeriodicTable()
+    atomic_num = atom.GetAtomicNum()
+    symbol = atom.GetSymbol()
+
+    features = []
+    features += one_hot_with_unknown(atomic_num, list(range(1, 61)))  # 61
+    features += one_hot_with_unknown(periodic.GetNOuterElecs(atomic_num), list(range(0, 9)))  # 10
+    features += one_hot_with_unknown(periodic.GetDefaultValence(atomic_num), list(range(0, 7)))  # 8
+    features += one_hot_with_unknown(int(atom.GetTotalDegree()), list(range(0, 6)))  # 7
+    features += [
+        float(atom.GetIsAromatic()),
+        float(atom.IsInRing()),
+        float(atom.GetFormalCharge()) / 8.0,
+        float(periodic.GetRcovalent(atomic_num) or 0.0) / 2.5,
+        float(periodic.GetRvdw(atomic_num) or 0.0) / 3.0,
+        float(periodic.GetAtomicWeight(atomic_num) or 0.0) / 250.0,
+    ]  # 6
+
+    if len(features) != 92:
+        raise ValueError(f"paper_atom_feature produced {len(features)} dims for {symbol}; expected 92")
+    return features
+
+
+def paper_bond_feature(bond):
+    """21-dim covalent-bond feature compatible with paper KA-GCN input."""
+    bond_dir = [0.0] * 7
+    dir_idx = int(bond.GetBondDir())
+    if 0 <= dir_idx < len(bond_dir):
+        bond_dir[dir_idx] = 1.0
+
+    bond_type = [0.0] * 4
+    bt = bond.GetBondType()
+    if bt == Chem.rdchem.BondType.SINGLE:
+        bond_type[0] = 1.0
+        bond_order = 1.0
+    elif bt == Chem.rdchem.BondType.DOUBLE:
+        bond_type[1] = 1.0
+        bond_order = 2.0
+    elif bt == Chem.rdchem.BondType.TRIPLE:
+        bond_type[2] = 1.0
+        bond_order = 3.0
+    elif bt == Chem.rdchem.BondType.AROMATIC:
+        bond_type[3] = 1.0
+        bond_order = 1.5
+    else:
+        bond_order = 0.0
+
+    ring = [0.0, 0.0]
+    ring[int(bond.IsInRing())] = 1.0
+
+    conjugated = [0.0, 0.0]
+    conjugated[int(bond.GetIsConjugated())] = 1.0
+
+    stereo = one_hot_with_unknown(bond.GetStereo(), [
+        Chem.rdchem.BondStereo.STEREONONE,
+        Chem.rdchem.BondStereo.STEREOANY,
+        Chem.rdchem.BondStereo.STEREOZ,
+        Chem.rdchem.BondStereo.STEREOE,
+    ])  # 5
+
+    features = bond_dir + bond_type + [bond_order / 3.0] + ring + conjugated + stereo
+    if len(features) != 21:
+        raise ValueError(f"paper_bond_feature produced {len(features)} dims; expected 21")
+    return features
+
+
+def mol_to_graph(mol, feature_mode):
+    if feature_mode == 'paper':
+        x = torch.tensor([paper_atom_feature(atom) for atom in mol.GetAtoms()], dtype=torch.float32)
+        edge_index = []
+        edge_attr = []
+        for bond in mol.GetBonds():
+            i = bond.GetBeginAtomIdx()
+            j = bond.GetEndAtomIdx()
+            feat = paper_bond_feature(bond)
+            edge_index.extend([[i, j], [j, i]])
+            edge_attr.extend([feat, feat])
+        if edge_index:
+            edge_index = torch.tensor(edge_index, dtype=torch.long).t().contiguous()
+            edge_attr = torch.tensor(edge_attr, dtype=torch.float32)
+        else:
+            edge_index = torch.zeros((2, 0), dtype=torch.long)
+            edge_attr = torch.zeros((0, 21), dtype=torch.float32)
+        return Data(x=x, edge_index=edge_index, edge_attr=edge_attr)
+
+    atom_features = [atom_to_feature_vector(atom) for atom in mol.GetAtoms()]
+    x = torch.tensor(atom_features, dtype=torch.long)
+    edge_index = []
+    edge_attr = []
+    for bond in mol.GetBonds():
+        i = bond.GetBeginAtomIdx()
+        j = bond.GetEndAtomIdx()
+        edge_index.extend([[i, j], [j, i]])
+        bond_feature = bond_to_feature_vector(bond)
+        edge_attr.extend([bond_feature, bond_feature])
+
+    if edge_index:
+        edge_index = torch.tensor(edge_index, dtype=torch.long).t().contiguous()
+        edge_attr = torch.tensor(edge_attr, dtype=torch.long)
+    else:
+        edge_index = torch.zeros((2, 0), dtype=torch.long)
+        edge_attr = torch.zeros((0, 3), dtype=torch.long)
+    return Data(x=x, edge_index=edge_index, edge_attr=edge_attr)
+
+
+args = parse_args()
+
 print("=" * 70)
 print("GraphNN 数据集生成（优化版）")
 print("=" * 70)
+print(f"Drug feature mode: {args.drug_feature_mode}")
 
 # 设置路径
 preprocessing_dir = 'data/preprocessing'
@@ -57,35 +184,7 @@ for idx, row in tqdm(uniq_drugs.iterrows(), total=len(uniq_drugs), desc="  处�
             failed_drugs.append(drug_id)
             continue
 
-        # 提取原子特征（使用OGB标准特征）
-        atom_features = []
-        for atom in mol.GetAtoms():
-            atom_features.append(atom_to_feature_vector(atom))
-
-        x = torch.tensor(atom_features, dtype=torch.long)
-
-        # 提取边
-        edge_index = []
-        edge_attr = []
-        for bond in mol.GetBonds():
-            i = bond.GetBeginAtomIdx()
-            j = bond.GetEndAtomIdx()
-            edge_index.append([i, j])
-            edge_index.append([j, i])
-
-            # 使用OGB标准边特征
-            bond_feature = bond_to_feature_vector(bond)
-            edge_attr.append(bond_feature)
-            edge_attr.append(bond_feature)
-
-        if len(edge_index) > 0:
-            edge_index = torch.tensor(edge_index, dtype=torch.long).t().contiguous()
-            edge_attr = torch.tensor(edge_attr, dtype=torch.long)
-        else:
-            edge_index = torch.zeros((2, 0), dtype=torch.long)
-            edge_attr = torch.zeros((0, 3), dtype=torch.long)  # OGB边特征是3维的
-
-        data = Data(x=x, edge_index=edge_index, edge_attr=edge_attr)
+        data = mol_to_graph(mol, args.drug_feature_mode)
         mol_graphs[drug_id] = data
 
     except Exception as e:
@@ -220,6 +319,11 @@ with open(f'{pyg_dataset_dir}/raw/zip_scores.pkl', 'wb') as f:
     pickle.dump(zip_scores, f)
 
 print(f"  ✓ 保存PyG数据集格式文件到 {pyg_dataset_dir}/raw/")
+
+processed_cache = f'{pyg_dataset_dir}/processed/geometric_data_processed.pt'
+if os.path.exists(processed_cache):
+    os.remove(processed_cache)
+    print(f"  ✓ 删除旧PyG processed缓存: {processed_cache}")
 
 print("\n步骤 7: 创建数据分区（5折交叉验证）")
 y_array = np.array([y_labels[i] for i in range(len(y_labels))])

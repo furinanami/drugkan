@@ -1,0 +1,2 @@
+dataset,split,encoder,seed,best_epoch,val_loss,test_loss,val_auc,val_aupr,val_f1,val_acc,test_auc,test_aupr,test_f1,test_acc,n_incident_nodes,n_total_nodes,n_train,n_valid,n_test,train_pos_rate,valid_pos_rate,test_pos_rate,n_hyperedges,train_test_drug_overlap
+ONEIL,random,hgnn,42,0,0.9531099796295166,0.9530881643295288,0.54261127394179,0.09107199936717233,0.0,0.9103375527426161,0.5123519852996634,0.08516363286856383,0.0,0.9108179419525066,70,70,15159,1896,1895,0.08938584476709366,0.08966244757175446,0.0891820564866066,1355,38

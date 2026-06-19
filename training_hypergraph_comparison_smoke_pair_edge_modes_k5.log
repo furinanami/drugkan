@@ -1,0 +1,425 @@
+================================================================================
+多GPU并行对比实验
+================================================================================
+
+使用GPU: [0, 1, 2, 3, 4, 5, 6, 7]
+GNN类型: ['Agg_shared', 'Agg_molknn', 'Agg_shared_molknn', 'Agg_randomknn']
+任务类型: ['classification']
+KAN类型: fourier
+训练轮数: 1
+随机种子: 42
+Fold: 0
+path_current_dir /home/bioinfo202200130116/bioinfo/codebasev5/graphnn/deepadr
+path_current_dir /home/bioinfo202200130116/bioinfo/codebasev5/graphnn/deepadr
+
+实验目录: /home/bioinfo202200130116/bioinfo/codebasev5/graphnn/data/processed/DrugComb_loewe_thresh_1/data_v1/experiments/multi_gpu_comparison_2026-05-19_21-23-14_smoke_pair_edge_modes_k5
+
+加载数据集...
+数据集大小: 160228
+
+分区文件不存在，按 random 场景即时生成分区...
+/home/bioinfo202200130116/bioinfo/codebasev5/graphnn/deepadr/cold_split.py:290: UserWarning: It is not recommended to directly access the internal storage format `data` of an 'InMemoryDataset'. If you are absolutely certain what you are doing, access the internal storage via `InMemoryDataset._data` instead to suppress this warning. Alternatively, you can access stacked individual attributes of every graph via `dataset.{attr_name}`.
+  y = dataset.data.y.cpu().numpy()
+  训练集: 115363
+  验证集: 12819
+  测试集: 32046
+path_current_dir /home/bioinfo202200130116/bioinfo/codebasev5/graphnn/deepadr
+path_current_dir /home/bioinfo202200130116/bioinfo/codebasev5/graphnn/deepadr
+path_current_dir /home/bioinfo202200130116/bioinfo/codebasev5/graphnn/deepadr
+path_current_dir /home/bioinfo202200130116/bioinfo/codebasev5/graphnn/deepadr
+path_current_dir /home/bioinfo202200130116/bioinfo/codebasev5/graphnn/deepadr
+path_current_dir /home/bioinfo202200130116/bioinfo/codebasev5/graphnn/deepadr
+path_current_dir /home/bioinfo202200130116/bioinfo/codebasev5/graphnn/deepadr
+path_current_dir /home/bioinfo202200130116/bioinfo/codebasev5/graphnn/deepadr
+path_current_dir /home/bioinfo202200130116/bioinfo/codebasev5/graphnn/deepadr
+path_current_dir /home/bioinfo202200130116/bioinfo/codebasev5/graphnn/deepadr
+path_current_dir /home/bioinfo202200130116/bioinfo/codebasev5/graphnn/deepadr
+path_current_dir /home/bioinfo202200130116/bioinfo/codebasev5/graphnn/deepadr
+
+分区文件不存在，按 cold_drug 场景即时生成分区...
+/home/bioinfo202200130116/bioinfo/codebasev5/graphnn/deepadr/cold_split.py:162: UserWarning: It is not recommended to directly access the internal storage format `data` of an 'InMemoryDataset'. If you are absolutely certain what you are doing, access the internal storage via `InMemoryDataset._data` instead to suppress this warning. Alternatively, you can access stacked individual attributes of every graph via `dataset.{attr_name}`.
+  drug_ids_a = dataset.data.drug_a_id.cpu().numpy()
+/home/bioinfo202200130116/bioinfo/codebasev5/graphnn/deepadr/cold_split.py:163: UserWarning: It is not recommended to directly access the internal storage format `data` of an 'InMemoryDataset'. If you are absolutely certain what you are doing, access the internal storage via `InMemoryDataset._data` instead to suppress this warning. Alternatively, you can access stacked individual attributes of every graph via `dataset.{attr_name}`.
+  drug_ids_b = dataset.data.drug_b_id.cpu().numpy()
+/home/bioinfo202200130116/bioinfo/codebasev5/graphnn/deepadr/cold_split.py:164: UserWarning: It is not recommended to directly access the internal storage format `data` of an 'InMemoryDataset'. If you are absolutely certain what you are doing, access the internal storage via `InMemoryDataset._data` instead to suppress this warning. Alternatively, you can access stacked individual attributes of every graph via `dataset.{attr_name}`.
+  y = dataset.data.y.cpu().numpy().reshape(-1)
+/home/bioinfo202200130116/bioinfo/codebasev5/graphnn/deepadr/cold_split.py:290: UserWarning: It is not recommended to directly access the internal storage format `data` of an 'InMemoryDataset'. If you are absolutely certain what you are doing, access the internal storage via `InMemoryDataset._data` instead to suppress this warning. Alternatively, you can access stacked individual attributes of every graph via `dataset.{attr_name}`.
+  y = dataset.data.y.cpu().numpy()
+  训练集: 115363
+  验证集: 12819
+  测试集: 32046
+  策略: cold_drug_balanced_exposure
+  Held-out test drugs: 11
+  Held-out validation drugs: 7
+path_current_dir /home/bioinfo202200130116/bioinfo/codebasev5/graphnn/deepadr
+path_current_dir /home/bioinfo202200130116/bioinfo/codebasev5/graphnn/deepadr
+path_current_dir /home/bioinfo202200130116/bioinfo/codebasev5/graphnn/deepadr
+path_current_dir /home/bioinfo202200130116/bioinfo/codebasev5/graphnn/deepadr
+path_current_dir /home/bioinfo202200130116/bioinfo/codebasev5/graphnn/deepadr
+path_current_dir /home/bioinfo202200130116/bioinfo/codebasev5/graphnn/deepadr
+path_current_dir /home/bioinfo202200130116/bioinfo/codebasev5/graphnn/deepadr
+path_current_dir /home/bioinfo202200130116/bioinfo/codebasev5/graphnn/deepadr
+path_current_dir /home/bioinfo202200130116/bioinfo/codebasev5/graphnn/deepadr
+path_current_dir /home/bioinfo202200130116/bioinfo/codebasev5/graphnn/deepadr
+path_current_dir /home/bioinfo202200130116/bioinfo/codebasev5/graphnn/deepadr
+path_current_dir /home/bioinfo202200130116/bioinfo/codebasev5/graphnn/deepadr
+
+总共 8 个实验将在 8 个GPU上运行
+
+实验列表:
+  1. GCN_Agg_shared_kan_aggregated_funcKAN_fourier_classification_random_seed42_shared_drug (GPU 0) [DrugKAN:✗ HgKAN:✓ HG:kan_aggregated]
+  2. GCN_Agg_molknn_kan_aggregated_funcKAN_fourier_classification_random_seed42_molecular_knn_knn5 (GPU 1) [DrugKAN:✗ HgKAN:✓ HG:kan_aggregated]
+  3. GCN_Agg_shared_molknn_kan_aggregated_funcKAN_fourier_classification_random_seed42_shared_plus_molecular_knn_knn5 (GPU 2) [DrugKAN:✗ HgKAN:✓ HG:kan_aggregated]
+  4. GCN_Agg_randomknn_kan_aggregated_funcKAN_fourier_classification_random_seed42_random_knn_knn5 (GPU 3) [DrugKAN:✗ HgKAN:✓ HG:kan_aggregated]
+  5. GCN_Agg_shared_kan_aggregated_funcKAN_fourier_classification_cold_drug_seed42_shared_drug (GPU 4) [DrugKAN:✗ HgKAN:✓ HG:kan_aggregated]
+  6. GCN_Agg_molknn_kan_aggregated_funcKAN_fourier_classification_cold_drug_seed42_molecular_knn_knn5 (GPU 5) [DrugKAN:✗ HgKAN:✓ HG:kan_aggregated]
+  7. GCN_Agg_shared_molknn_kan_aggregated_funcKAN_fourier_classification_cold_drug_seed42_shared_plus_molecular_knn_knn5 (GPU 6) [DrugKAN:✗ HgKAN:✓ HG:kan_aggregated]
+  8. GCN_Agg_randomknn_kan_aggregated_funcKAN_fourier_classification_cold_drug_seed42_random_knn_knn5 (GPU 7) [DrugKAN:✗ HgKAN:✓ HG:kan_aggregated]
+
+开始并行训练...
+================================================================================
+
+================================================================================
+所有实验完成!
+================================================================================
+
+生成对比报告和图表...
+/home/bioinfo202200130116/bioinfo/codebasev5/graphnn/run_multi_gpu_comparison.py:386: UserWarning: Tight layout not applied. The bottom and top margins cannot be made large enough to accommodate all Axes decorations.
+  plt.tight_layout()
+/home/bioinfo202200130116/bioinfo/codebasev5/graphnn/run_multi_gpu_comparison.py:386: UserWarning: Tight layout not applied. The bottom and top margins cannot be made large enough to accommodate all Axes decorations.
+  plt.tight_layout()
+/home/bioinfo202200130116/bioinfo/codebasev5/graphnn/run_multi_gpu_comparison.py:386: UserWarning: Tight layout not applied. The bottom and top margins cannot be made large enough to accommodate all Axes decorations.
+  plt.tight_layout()
+/home/bioinfo202200130116/bioinfo/codebasev5/graphnn/run_multi_gpu_comparison.py:386: UserWarning: Tight layout not applied. The bottom and top margins cannot be made large enough to accommodate all Axes decorations.
+  plt.tight_layout()
+
+详细报告已保存到: /home/bioinfo202200130116/bioinfo/codebasev5/graphnn/data/processed/DrugComb_loewe_thresh_1/data_v1/experiments/multi_gpu_comparison_2026-05-19_21-23-14_smoke_pair_edge_modes_k5/multi_gpu_comparison_report.md
+
+结果保存在: /home/bioinfo202200130116/bioinfo/codebasev5/graphnn/data/processed/DrugComb_loewe_thresh_1/data_v1/experiments/multi_gpu_comparison_2026-05-19_21-23-14_smoke_pair_edge_modes_k5
+
+生成的文件:
+  - all_results.csv: 所有结果数据
+  - multi_gpu_comparison_report.md: 详细报告
+  - overall_comparison.png: 总体对比图
+ioinfo202200130116/bioinfo/codebasev5/graphnn/deepadr/train_functions_hypergraph.py:176: UserWarning: It is not recommended to directly access the internal storage format `data` of an 'InMemoryDataset'. If you are absolutely certain what you are doing, access the internal storage via `InMemoryDataset._data` instead to suppress this warning. Alternatively, you can access stacked individual attributes of every graph via `dataset.{attr_name}`.
+  expression_scaler.fit(used_dataset.data.expression[partition['train']])
+gpu: cuda:3
+超图模式: kan_aggregated
+任务类型: classification
+使用重构损失: False
+使用KAN: True
+KAN类型: fourier
+Pair边模式: random_knn
+Pair KNN k: 5
+/home/bioinfo202200130116/bioinfo/codebasev5/graphnn/deepadr/train_functions_hypergraph.py:176: UserWarning: It is not recommended to directly access the internal storage format `data` of an 'InMemoryDataset'. If you are absolutely certain what you are doing, access the internal storage via `InMemoryDataset._data` instead to suppress this warning. Alternatively, you can access stacked individual attributes of every graph via `dataset.{attr_name}`.
+  expression_scaler.fit(used_dataset.data.expression[partition['train']])
+图结构构建: 仅使用当前batch。每行样本加一条边/超边；不检索额外context样本。
+gpu: cuda:6
+超图模式: kan_aggregated
+任务类型: classification
+使用重构损失: False
+使用KAN: True
+KAN类型: fourier
+Pair边模式: shared_plus_molecular_knn
+Pair KNN k: 5
+/home/bioinfo202200130116/bioinfo/codebasev5/graphnn/deepadr/train_functions_hypergraph.py:176: UserWarning: It is not recommended to directly access the internal storage format `data` of an 'InMemoryDataset'. If you are absolutely certain what you are doing, access the internal storage via `InMemoryDataset._data` instead to suppress this warning. Alternatively, you can access stacked individual attributes of every graph via `dataset.{attr_name}`.
+  expression_scaler.fit(used_dataset.data.expression[partition['train']])
+Initialized Standard GNN: gcn, 5 layers, emb_dim=128
+图结构构建: 仅使用当前batch。每行样本加一条边/超边；不检索额外context样本。
+gpu: cuda:7
+超图模式: kan_aggregated
+任务类型: classification
+使用重构损失: False
+使用KAN: True
+KAN类型: fourier
+Pair边模式: random_knn
+Pair KNN k: 5
+/home/bioinfo202200130116/bioinfo/codebasev5/graphnn/deepadr/train_functions_hypergraph.py:176: UserWarning: It is not recommended to directly access the internal storage format `data` of an 'InMemoryDataset'. If you are absolutely certain what you are doing, access the internal storage via `InMemoryDataset._data` instead to suppress this warning. Alternatively, you can access stacked individual attributes of every graph via `dataset.{attr_name}`.
+  expression_scaler.fit(used_dataset.data.expression[partition['train']])
+图结构构建: 仅使用当前batch。每行样本加一条边/超边；不检索额外context样本。
+Initialized Standard GNN: gcn, 5 layers, emb_dim=128
+gpu: cuda:5
+超图模式: kan_aggregated
+任务类型: classification
+使用重构损失: False
+使用KAN: True
+KAN类型: fourier
+Pair边模式: molecular_knn
+Pair KNN k: 5
+/home/bioinfo202200130116/bioinfo/codebasev5/graphnn/deepadr/train_functions_hypergraph.py:176: UserWarning: It is not recommended to directly access the internal storage format `data` of an 'InMemoryDataset'. If you are absolutely certain what you are doing, access the internal storage via `InMemoryDataset._data` instead to suppress this warning. Alternatively, you can access stacked individual attributes of every graph via `dataset.{attr_name}`.
+  expression_scaler.fit(used_dataset.data.expression[partition['train']])
+Initialized Standard GNN: gcn, 5 layers, emb_dim=128
+gpu: cuda:4
+超图模式: kan_aggregated
+任务类型: classification
+使用重构损失: False
+使用KAN: True
+KAN类型: fourier
+Pair边模式: shared_drug
+Pair KNN k: 5
+/home/bioinfo202200130116/bioinfo/codebasev5/graphnn/deepadr/train_functions_hypergraph.py:176: UserWarning: It is not recommended to directly access the internal storage format `data` of an 'InMemoryDataset'. If you are absolutely certain what you are doing, access the internal storage via `InMemoryDataset._data` instead to suppress this warning. Alternatively, you can access stacked individual attributes of every graph via `dataset.{attr_name}`.
+  expression_scaler.fit(used_dataset.data.expression[partition['train']])
+Dropout(p=0.2, inplace=False) Dropout(p=0.2, inplace=False)
+图结构构建: 仅使用当前batch。每行样本加一条边/超边；不检索额外context样本。
+Initialized Standard GNN: gcn, 5 layers, emb_dim=128
+图结构构建: 仅使用当前batch。每行样本加一条边/超边；不检索额外context样本。
+图结构构建: 仅使用当前batch。每行样本加一条边/超边；不检索额外context样本。
+Initialized Standard GNN: gcn, 5 layers, emb_dim=128
+图结构构建: 仅使用当前batch。每行样本加一条边/超边；不检索额外context样本。
+Initialized Standard GNN: gcn, 5 layers, emb_dim=128
+Initialized Standard GNN: gcn, 5 layers, emb_dim=128
+Dropout(p=0.2, inplace=False) Dropout(p=0.2, inplace=False)
+Dropout(p=0.2, inplace=False) Dropout(p=0.2, inplace=False)
+Dropout(p=0.2, inplace=False) Dropout(p=0.2, inplace=False)
+/home/bioinfo202200130116/bioinfo/codebasev5/graphnn/deepadr/train_functions_hypergraph.py:267: UserWarning: It is not recommended to directly access the internal storage format `data` of an 'InMemoryDataset'. If you are absolutely certain what you are doing, access the internal storage via `InMemoryDataset._data` instead to suppress this warning. Alternatively, you can access stacked individual attributes of every graph via `dataset.{attr_name}`.
+  y_weights = compute_class_weights(used_dataset.data.y[partition['train']])
+=====Epoch 0
+Training...
+Dropout(p=0.2, inplace=False) Dropout(p=0.2, inplace=False)
+Dropout(p=0.2, inplace=False) Dropout(p=0.2, inplace=False)
+Dropout(p=0.2, inplace=False) Dropout(p=0.2, inplace=False)
+Dropout(p=0.2, inplace=False) Dropout(p=0.2, inplace=False)
+/home/bioinfo202200130116/bioinfo/codebasev5/graphnn/deepadr/train_functions_hypergraph.py:267: UserWarning: It is not recommended to directly access the internal storage format `data` of an 'InMemoryDataset'. If you are absolutely certain what you are doing, access the internal storage via `InMemoryDataset._data` instead to suppress this warning. Alternatively, you can access stacked individual attributes of every graph via `dataset.{attr_name}`.
+  y_weights = compute_class_weights(used_dataset.data.y[partition['train']])
+=====Epoch 0
+Training...
+/home/bioinfo202200130116/bioinfo/codebasev5/graphnn/deepadr/train_functions_hypergraph.py:267: UserWarning: It is not recommended to directly access the internal storage format `data` of an 'InMemoryDataset'. If you are absolutely certain what you are doing, access the internal storage via `InMemoryDataset._data` instead to suppress this warning. Alternatively, you can access stacked individual attributes of every graph via `dataset.{attr_name}`.
+  y_weights = compute_class_weights(used_dataset.data.y[partition['train']])
+=====Epoch 0
+Training...
+/home/bioinfo202200130116/bioinfo/codebasev5/graphnn/deepadr/train_functions_hypergraph.py:267: UserWarning: It is not recommended to directly access the internal storage format `data` of an 'InMemoryDataset'. If you are absolutely certain what you are doing, access the internal storage via `InMemoryDataset._data` instead to suppress this warning. Alternatively, you can access stacked individual attributes of every graph via `dataset.{attr_name}`.
+  y_weights = compute_class_weights(used_dataset.data.y[partition['train']])
+=====Epoch 0
+Training...
+/home/bioinfo202200130116/bioinfo/codebasev5/graphnn/deepadr/train_functions_hypergraph.py:267: UserWarning: It is not recommended to directly access the internal storage format `data` of an 'InMemoryDataset'. If you are absolutely certain what you are doing, access the internal storage via `InMemoryDataset._data` instead to suppress this warning. Alternatively, you can access stacked individual attributes of every graph via `dataset.{attr_name}`.
+  y_weights = compute_class_weights(used_dataset.data.y[partition['train']])
+/home/bioinfo202200130116/bioinfo/codebasev5/graphnn/deepadr/train_functions_hypergraph.py:267: UserWarning: It is not recommended to directly access the internal storage format `data` of an 'InMemoryDataset'. If you are absolutely certain what you are doing, access the internal storage via `InMemoryDataset._data` instead to suppress this warning. Alternatively, you can access stacked individual attributes of every graph via `dataset.{attr_name}`.
+  y_weights = compute_class_weights(used_dataset.data.y[partition['train']])
+/home/bioinfo202200130116/bioinfo/codebasev5/graphnn/deepadr/train_functions_hypergraph.py:267: UserWarning: It is not recommended to directly access the internal storage format `data` of an 'InMemoryDataset'. If you are absolutely certain what you are doing, access the internal storage via `InMemoryDataset._data` instead to suppress this warning. Alternatively, you can access stacked individual attributes of every graph via `dataset.{attr_name}`.
+  y_weights = compute_class_weights(used_dataset.data.y[partition['train']])
+/home/bioinfo202200130116/bioinfo/codebasev5/graphnn/deepadr/train_functions_hypergraph.py:267: UserWarning: It is not recommended to directly access the internal storage format `data` of an 'InMemoryDataset'. If you are absolutely certain what you are doing, access the internal storage via `InMemoryDataset._data` instead to suppress this warning. Alternatively, you can access stacked individual attributes of every graph via `dataset.{attr_name}`.
+  y_weights = compute_class_weights(used_dataset.data.y[partition['train']])
+=====Epoch 0
+Training...
+=====Epoch 0
+Training...
+=====Epoch 0
+Training...
+=====Epoch 0
+Training...
+Evaluating...
+Evaluating...
+Evaluating...
+Evaluating...
+Evaluating...
+Evaluating...
+Evaluating...
+Evaluating...
+{'Train':  best_epoch_indx:0
+ auc:0.6684207161228899 
+ apur:0.22967736420542298 
+ f1:0.3249308772307803 
+ precision:0.23574312882636447 
+ recall:0.5226708253913245 
+, 'Validation':  best_epoch_indx:0
+ auc:0.5604650547911123 
+ apur:0.1685508899792963 
+ f1:0.25568546832840805 
+ precision:0.16918891345009351 
+ recall:0.5231335436382755 
+, 'Test':  best_epoch_indx:0
+ auc:0.6346677931255074 
+ apur:0.20111988044036916 
+ f1:0.2745387453874539 
+ precision:0.2182813926196375 
+ recall:0.3698630136986301 
+}
+Finished training!
+Best validation epoch: 0, Best validation F-score: 0.2592
+
+[GPU 4] 实验 GCN_Agg_shared_kan_aggregated_funcKAN_fourier_classification_cold_drug_seed42_shared_drug 完成!
+[GPU 4] 最佳epoch: 0
+[GPU 4] Test AUPR: 0.2011
+[GPU 4] Test AUC: 0.6347
+{'Train':  best_epoch_indx:0
+ auc:0.6434979247933614 
+ apur:0.21399291698262046 
+ f1:0.30684101314185963 
+ precision:0.21352769946595154 
+ recall:0.5450184285965015 
+, 'Validation':  best_epoch_indx:0
+ auc:0.6612844100818949 
+ apur:0.2272386736372361 
+ f1:0.3118445934330411 
+ precision:0.2315547612969109 
+ recall:0.47736842105263155 
+, 'Test':  best_epoch_indx:0
+ auc:0.6673188005848644 
+ apur:0.22721261351352917 
+ f1:0.3156907989616383 
+ precision:0.24002192982456141 
+ recall:0.4610362257792755 
+}
+Finished training!
+Best validation epoch: 0, Best validation F-score: 0.3382
+
+[GPU 0] 实验 GCN_Agg_shared_kan_aggregated_funcKAN_fourier_classification_random_seed42_shared_drug 完成!
+[GPU 0] 最佳epoch: 0
+[GPU 0] Test AUPR: 0.2272
+[GPU 0] Test AUC: 0.6673
+{'Train':  best_epoch_indx:0
+ auc:0.6229346218805552 
+ apur:0.20555547252934128 
+ f1:0.30059305955991095 
+ precision:0.20272829854114613 
+ recall:0.5811240108588922 
+, 'Validation':  best_epoch_indx:0
+ auc:0.5730029000968689 
+ apur:0.17447744699480494 
+ f1:0.27469695523527726 
+ precision:0.1678134110787172 
+ recall:0.7565720294426919 
+, 'Test':  best_epoch_indx:0
+ auc:0.6389350628538983 
+ apur:0.20297763153738424 
+ f1:0.2973900478641741 
+ precision:0.18688989784335983 
+ recall:0.7275740167918692 
+}
+Finished training!
+Best validation epoch: 0, Best validation F-score: 0.2675
+
+[GPU 5] 实验 GCN_Agg_molknn_kan_aggregated_funcKAN_fourier_classification_cold_drug_seed42_molecular_knn_knn5 完成!
+[GPU 5] 最佳epoch: 0
+[GPU 5] Test AUPR: 0.2030
+[GPU 5] Test AUC: 0.6389
+{'Train':  best_epoch_indx:0
+ auc:0.6404567483887637 
+ apur:0.2201921991856671 
+ f1:0.312653380226651 
+ precision:0.21432857571471434 
+ recall:0.5776584069774158 
+, 'Validation':  best_epoch_indx:0
+ auc:0.5612059236373643 
+ apur:0.17467101170034152 
+ f1:0.26359680928208845 
+ precision:0.1592552026286966 
+ recall:0.7644584647739222 
+, 'Test':  best_epoch_indx:0
+ auc:0.6698701952350244 
+ apur:0.2321244653983811 
+ f1:0.31000759165810743 
+ precision:0.19426876364246937 
+ recall:0.7669023420238621 
+}
+Finished training!
+Best validation epoch: 0, Best validation F-score: 0.2664
+
+[GPU 6] 实验 GCN_Agg_shared_molknn_kan_aggregated_funcKAN_fourier_classification_cold_drug_seed42_shared_plus_molecular_knn_knn5 完成!
+[GPU 6] 最佳epoch: 0
+[GPU 6] Test AUPR: 0.2321
+[GPU 6] Test AUC: 0.6699
+{'Train':  best_epoch_indx:0
+ auc:0.6175465143900495 
+ apur:0.20318513651459585 
+ f1:0.289068085460138 
+ precision:0.20191861005295922 
+ recall:0.5085707599602176 
+, 'Validation':  best_epoch_indx:0
+ auc:0.6522340825504552 
+ apur:0.22081081748390663 
+ f1:0.31073785242951407 
+ precision:0.21728187919463088 
+ recall:0.5452631578947369 
+, 'Test':  best_epoch_indx:0
+ auc:0.6715657079284008 
+ apur:0.2395156472590147 
+ f1:0.32920051303976056 
+ precision:0.23182795698924732 
+ recall:0.5676074136478517 
+}
+{'Train':  best_epoch_indx:0
+ auc:0.6240873238185412 
+ apur:0.20346331363978137 
+ f1:0.2994743488092092 
+ precision:0.19990982690686687 
+ recall:0.5966184988006786 
+, 'Validation':  best_epoch_indx:0
+ auc:0.6415009568063395 
+ apur:0.21678123090412557 
+ f1:0.3112170573433982 
+ precision:0.20792780038931163 
+ recall:0.618421052631579 
+, 'Test':  best_epoch_indx:0
+ auc:0.6626471334541422 
+ apur:0.22607990916806367 
+ f1:0.3284033250566771 
+ precision:0.2207867615038467 
+ recall:0.6406908171861837 
+}
+Finished training!
+Best validation epoch: 0, Best validation F-score: 0.3299
+Finished training!
+Best validation epoch: 0, Best validation F-score: 0.3241
+
+[GPU 2] 实验 GCN_Agg_shared_molknn_kan_aggregated_funcKAN_fourier_classification_random_seed42_shared_plus_molecular_knn_knn5 完成!
+[GPU 2] 最佳epoch: 0
+[GPU 2] Test AUPR: 0.2395
+[GPU 2] Test AUC: 0.6716
+
+[GPU 1] 实验 GCN_Agg_molknn_kan_aggregated_funcKAN_fourier_classification_random_seed42_molecular_knn_knn5 完成!
+[GPU 1] 最佳epoch: 0
+[GPU 1] Test AUPR: 0.2261
+[GPU 1] Test AUC: 0.6626
+{'Train':  best_epoch_indx:0
+ auc:0.5906928238760137 
+ apur:0.18894187586668248 
+ f1:0.2798760324450969 
+ precision:0.18827308275476817 
+ recall:0.5450817304915382 
+, 'Validation':  best_epoch_indx:0
+ auc:0.5191961292486361 
+ apur:0.15500654294110933 
+ f1:0.2510223953261928 
+ precision:0.15403919694072657 
+ recall:0.6777076761303891 
+, 'Test':  best_epoch_indx:0
+ auc:0.5392078929942246 
+ apur:0.15652364587830692 
+ f1:0.24249422632794457 
+ precision:0.15329362298528382 
+ recall:0.5799823243482103 
+}
+Finished training!
+Best validation epoch: 0, Best validation F-score: 0.2387
+
+[GPU 7] 实验 GCN_Agg_randomknn_kan_aggregated_funcKAN_fourier_classification_cold_drug_seed42_random_knn_knn5 完成!
+[GPU 7] 最佳epoch: 0
+[GPU 7] Test AUPR: 0.1565
+[GPU 7] Test AUC: 0.5392
+{'Train':  best_epoch_indx:0
+ auc:0.592309278071629 
+ apur:0.18912198096464478 
+ f1:0.2768873474002659 
+ precision:0.1873810902473323 
+ recall:0.5301000409524367 
+, 'Validation':  best_epoch_indx:0
+ auc:0.5948645769566329 
+ apur:0.19056312652006677 
+ f1:0.28178407669862443 
+ precision:0.19142911081744385 
+ recall:0.5336842105263158 
+, 'Test':  best_epoch_indx:0
+ auc:0.603840638284569 
+ apur:0.19644291287751597 
+ f1:0.2838188635708105 
+ precision:0.19543973941368079 
+ recall:0.5181128896377422 
+}
+Finished training!
+Best validation epoch: 0, Best validation F-score: 0.2887
+
+[GPU 3] 实验 GCN_Agg_randomknn_kan_aggregated_funcKAN_fourier_classification_random_seed42_random_knn_knn5 完成!
+[GPU 3] 最佳epoch: 0
+[GPU 3] Test AUPR: 0.1964
+[GPU 3] Test AUC: 0.6038

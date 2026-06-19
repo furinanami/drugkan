@@ -267,20 +267,14 @@ class KAGINConvWEdge(MessagePassing):
 
 class KAGCNConv(MessagePassing):
     """
-    KAN-enhanced Graph Convolutional Network (KAGCN)
+    Paper-style KA-GCN convolution.
 
-    新的核心思想：
-    1. 聚合邻居信息（平均）
-    2. 与自身特征平均：(h + mean(邻居)) / 2
-    3. 通过KAN进行非线性变换
-    4. 与自身特征相加得到下一层：h' = h + KAN((h + mean(邻居)) / 2)
+    The KA-GNN paper describes message passing as:
 
-    公式：h' = h + KAN((h + mean(h_j for j in N(i))) / 2)
+        h_i' = skip(h_i) + phi([h_i || mean(h_j, j in N(i))])
 
-    优势：
-    - 结合自身和邻居信息后再变换
-    - KAN学习复杂的聚合模式
-    - 残差连接保持梯度流动
+    where phi is a KAN layer when use_kan=True and a Linear layer for the
+    matched non-KAN baseline.
     """
     def __init__(self, in_channels, out_channels, use_kan=True, kan_type='fourier'):
         super(KAGCNConv, self).__init__(aggr='mean')  # 使用mean聚合邻居
@@ -290,12 +284,11 @@ class KAGCNConv(MessagePassing):
         self.use_kan = use_kan
         self.kan_type = kan_type
 
+        fusion_in_channels = 2 * in_channels
         if use_kan:
-            # KAN处理聚合后的信息
-            self.kan = KANLinear(in_channels, out_channels, kan_type=kan_type)
+            self.kan = KANLinear(fusion_in_channels, out_channels, kan_type=kan_type)
         else:
-            # baseline使用普通线性层
-            self.linear = nn.Linear(in_channels, out_channels)
+            self.linear = nn.Linear(fusion_in_channels, out_channels)
 
         self.skip_connection = (
             nn.Identity() if in_channels == out_channels else nn.Linear(in_channels, out_channels)
@@ -310,24 +303,16 @@ class KAGCNConv(MessagePassing):
         Returns:
             out: 更新后的节点特征 [num_nodes, out_channels]
         """
-        # 1. 聚合邻居信息（平均）
         neighbor_mean = self.propagate(edge_index, x=x)
+        combined = torch.cat([x, neighbor_mean], dim=-1)
 
-        # 2. 与自身平均：(h + mean(邻居)) / 2
-        combined = (x + neighbor_mean) / 2.0
-
-        # 3. 通过KAN或线性层变换
         if self.use_kan:
             transformed = self.kan(combined)
         else:
             transformed = self.linear(combined)
 
-        # 4. 与自身相加（残差连接）
         x_skip = self.skip_connection(x)
-
-        out = x_skip + transformed
-
-        return out
+        return x_skip + transformed
 
     def message(self, x_j):
         """直接传递邻居特征，聚合方式由aggr='mean'控制"""
@@ -369,3 +354,41 @@ class KAGCNNeighborConv(MessagePassing):
 
     def message(self, x_j):
         return self.neighbor_func(x_j)
+
+
+class KAOriginalConv(MessagePassing):
+    """
+    Original KA-GNN style message passing.
+
+    The upstream KA-GNN implementation applies a KAN/Fourier transform on each
+    source node message, sums incoming messages, then adds the previous node
+    state as a residual:
+
+        h_i' = skip(h_i) + sum_{j in N(i)} phi(h_j)
+
+    This intentionally avoids the averaging used by KAGCNConv and
+    KAGCNNeighborConv.
+    """
+    def __init__(self, in_channels, out_channels, use_kan=True, kan_type='fourier'):
+        super(KAOriginalConv, self).__init__(aggr='add')
+
+        self.in_channels = in_channels
+        self.out_channels = out_channels
+        self.use_kan = use_kan
+        self.kan_type = kan_type
+
+        if use_kan:
+            self.message_func = KANLinear(in_channels, out_channels, kan_type=kan_type)
+        else:
+            self.message_func = nn.Linear(in_channels, out_channels)
+
+        self.skip_connection = (
+            nn.Identity() if in_channels == out_channels else nn.Linear(in_channels, out_channels)
+        )
+
+    def forward(self, x, edge_index):
+        neighbor_msg = self.propagate(edge_index, x=x)
+        return self.skip_connection(x) + neighbor_msg
+
+    def message(self, x_j):
+        return self.message_func(x_j)

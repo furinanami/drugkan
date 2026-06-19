@@ -1,9 +1,13 @@
+import os
 import torch
 import torch.nn as nn
 from torch_geometric.nn import HypergraphConv, GCNConv, global_max_pool, global_mean_pool
 import sys
 
-sys.path.append('..')
+MODULE_DIR = os.path.dirname(os.path.abspath(__file__))
+MODEL_DIR = os.path.dirname(MODULE_DIR)
+if MODEL_DIR not in sys.path:
+    sys.path.insert(0, MODEL_DIR)
 from utils import reset
 
 drug_num = 87
@@ -123,5 +127,5 @@ class HypergraphSynergy(torch.nn.Module):
         drug_emb, cline_emb = graph_embed[:drug_num], graph_embed[drug_num:]
         rec_drug = torch.sigmoid(torch.mm(torch.mm(drug_emb, self.drug_rec_weight), drug_emb.t()))
         rec_cline = torch.sigmoid(torch.mm(torch.mm(cline_emb, self.cline_rec_weight), cline_emb.t()))
-        res, tsne = self.decoder(graph_embed, druga_id, drugb_id, cellline_id)
-        return res, rec_drug, rec_cline, tsne
+        res = self.decoder(graph_embed, druga_id, drugb_id, cellline_id)
+        return res, rec_drug, rec_cline

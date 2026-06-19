@@ -43,7 +43,7 @@ def parse_args():
     parser.add_argument('--num_layer', type=int, default=5,
                        help='Number of GNN layers (default: 5)')
     parser.add_argument('--gnn_types', type=str, default='gcn',
-                       help='Comma-separated drug encoder GNN types to train (gin,gcn,gatv2,kagcn_neighbor). Default: gcn')
+                       help='Comma-separated drug encoder GNN types to train (gin,gcn,gatv2,kagcn_neighbor,paper_kagcn). Default: gcn')
     parser.add_argument('--use_kan', type=str, default='true',
                        choices=['true', 'false', 'both'],
                        help='Whether to use KAN: true (only KAN), false (only baseline), both (train both). Default: true')
@@ -68,6 +68,10 @@ def parse_args():
                            'kan_placement', 'hgkan_only',
                            'hgkan_hypergraph_classification_cold_drug',
                            'mean_hypergraph_only',
+                           'original_kagnn_mlp',
+                           'paper_kagcn_cell_graph',
+                           'ddos_cluster_prior',
+                           'pair_edge_modes',
                        ],
                        help='Predefined ablation. mlp_frontend_tasks runs GCN/KAGCN/KAGCN_NEIGHBOR with concat+MLP on classification and Loewe regression for random/cold_drug.')
     parser.add_argument('--seed', type=int, default=42,
@@ -83,6 +87,30 @@ def parse_args():
                        help='Drug encoder Jumping Knowledge mode. Default: last')
     parser.add_argument('--use_drug_readout_kan', action='store_true',
                        help='Apply a KAN projection after graph pooling to form drug embeddings.')
+    parser.add_argument('--pair_cluster_k', type=int, default=128,
+                       help='Number of pair clusters to use for cluster-prior ablations. Default: 128')
+    parser.add_argument('--pair_cluster_dir', type=str, default='',
+                       help='Directory containing pair_cluster_assignments.csv and sample_pair_table.csv.')
+    parser.add_argument('--pair_edge_mode', type=str, default='shared_drug',
+                       choices=['none', 'shared_drug', 'molecular_knn', 'shared_plus_molecular_knn', 'random_knn'],
+                       help='Pair-pair edge mode for kan_aggregated graph. Default: shared_drug')
+    parser.add_argument('--pair_knn_k', type=int, default=5,
+                       help='K for molecular/random pair-pair KNN edges in kan_aggregated mode. Default: 5')
+    parser.add_argument('--cell_encoder_type', type=str, default='mlp',
+                       choices=['mlp', 'gene_graph'],
+                       help='Cell-line encoder: mlp or gene_graph. Default: mlp')
+    parser.add_argument('--cell_graph_top_k', type=int, default=8,
+                       help='Top-k expression-correlation neighbours per gene for gene_graph cell encoder. Default: 8')
+    parser.add_argument('--cell_graph_hidden', type=int, default=128,
+                       help='Hidden dimension for gene_graph cell encoder. Default: 128')
+    parser.add_argument('--cell_graph_layers', type=int, default=2,
+                       help='Number of gene graph layers for cell encoder. Default: 2')
+    parser.add_argument('--cell_graph_use_kan', action='store_true',
+                       help='Use KAN message functions in the gene_graph cell encoder.')
+    parser.add_argument('--paper_node_feature_dim', type=int, default=0,
+                       help='Raw paper-style atom feature dimension for paper_kagcn; 0 uses existing OGB categorical features. Default: 0')
+    parser.add_argument('--paper_edge_feature_dim', type=int, default=0,
+                       help='Raw paper-style bond feature dimension for paper_kagcn; 0 uses existing OGB categorical features. Default: 0')
     return parser.parse_args()
 
 
@@ -162,6 +190,18 @@ def create_training_params(args, gnn_type, use_kan, hypergraph_mode, scenario='r
         "fold": args.fold,
         "early_stopping_patience": args.early_stopping,
         "enable_realtime_viz": True,  # 启用实时可视化
+        "pair_cluster_k": args.pair_cluster_k,
+        "pair_cluster_dir": args.pair_cluster_dir,
+        "pair_edge_mode": args.pair_edge_mode,
+        "pair_knn_k": args.pair_knn_k,
+        "pair_edge_seed": args.seed,
+        "cell_encoder_type": args.cell_encoder_type,
+        "cell_graph_top_k": args.cell_graph_top_k,
+        "cell_graph_hidden": args.cell_graph_hidden,
+        "cell_graph_layers": args.cell_graph_layers,
+        "cell_graph_use_kan": args.cell_graph_use_kan,
+        "paper_node_feature_dim": args.paper_node_feature_dim or None,
+        "paper_edge_feature_dim": args.paper_edge_feature_dim or None,
     }
     return tp
 
@@ -191,8 +231,12 @@ def run_single_experiment_wrapper(args_tuple):
         # 根据hypergraph_mode选择训练函数
         queue = mp.Queue()
 
+        trainer = tp.get('trainer', '')
         hypergraph_mode = tp.get('hypergraph_mode', 'mlp')
-        if hypergraph_mode in ['hypergraph', 'mean_hypergraph', 'kan_hypergraph', 'kan_aggregated', 'mlp', 'kan_mlp'] or tp.get('task') == 'regression':
+        if trainer == 'deepdds':
+            from deepadr.train_functions_DeepDDS import run_exp_deepdds
+            run_exp_deepdds(queue, dataset, gpu_id, tp, exp_dir, partition)
+        elif hypergraph_mode in ['hypergraph', 'mean_hypergraph', 'kan_hypergraph', 'kan_aggregated', 'mlp', 'kan_mlp'] or tp.get('task') == 'regression':
             from deepadr.train_functions_hypergraph import run_exp_deepdds_hypergraph
             run_exp_deepdds_hypergraph(queue, dataset, gpu_id, tp, exp_dir, partition)
         else:
@@ -223,7 +267,16 @@ def run_single_experiment_wrapper(args_tuple):
                 'use_drug_readout_kan': tp.get('use_drug_readout_kan', False),
                 'drug_jk': tp.get('drug_jk', 'last'),
                 'hypergraph_mode': tp.get('hypergraph_mode', 'mlp'),
+                'pair_edge_mode': tp.get('pair_edge_mode', ''),
+                'pair_knn_k': tp.get('pair_knn_k', ''),
+                'cell_encoder_type': tp.get('cell_encoder_type', 'mlp'),
+                'cell_graph_top_k': tp.get('cell_graph_top_k', ''),
+                'cell_graph_hidden': tp.get('cell_graph_hidden', ''),
+                'cell_graph_layers': tp.get('cell_graph_layers', ''),
+                'cell_graph_use_kan': tp.get('cell_graph_use_kan', False),
                 'decoder_type': tp.get('decoder_type', 'mlp'),
+                'trainer': tp.get('trainer', ''),
+                'gnn_type': tp.get('gnn_type'),
                 'task': tp.get('task'),
                 'target_score': tp.get('target_score'),
                 'seed': tp.get('seed'),
@@ -248,7 +301,16 @@ def run_single_experiment_wrapper(args_tuple):
                 'use_drug_readout_kan': tp.get('use_drug_readout_kan', False),
                 'drug_jk': tp.get('drug_jk', 'last'),
                 'hypergraph_mode': tp.get('hypergraph_mode', 'mlp'),
+                'pair_edge_mode': tp.get('pair_edge_mode', ''),
+                'pair_knn_k': tp.get('pair_knn_k', ''),
+                'cell_encoder_type': tp.get('cell_encoder_type', 'mlp'),
+                'cell_graph_top_k': tp.get('cell_graph_top_k', ''),
+                'cell_graph_hidden': tp.get('cell_graph_hidden', ''),
+                'cell_graph_layers': tp.get('cell_graph_layers', ''),
+                'cell_graph_use_kan': tp.get('cell_graph_use_kan', False),
                 'decoder_type': tp.get('decoder_type', 'mlp'),
+                'trainer': tp.get('trainer', ''),
+                'gnn_type': tp.get('gnn_type'),
                 'task': tp.get('task'),
                 'seed': tp.get('seed'),
                 'fold': tp.get('fold'),
@@ -656,6 +718,26 @@ def main():
         args.target_score = 'loewe'
         args.scenario = 'cold_drug'
         args.use_hypergraph = 'mean_hypergraph'
+    elif args.ablation == 'original_kagnn_mlp':
+        args.task = 'classification'
+        args.scenario = 'random,cold_drug'
+        args.use_hypergraph = 'mlp'
+        args.drug_jk = 'last'
+    elif args.ablation == 'paper_kagcn_cell_graph':
+        args.task = 'classification'
+        args.scenario = 'random,cold_drug'
+        args.use_hypergraph = 'mlp'
+        args.drug_jk = 'last'
+    elif args.ablation == 'ddos_cluster_prior':
+        args.task = 'classification'
+        args.scenario = 'random,cold_drug'
+        args.use_hypergraph = 'mlp'
+        args.drug_jk = 'last'
+    elif args.ablation == 'pair_edge_modes':
+        args.task = 'classification'
+        args.scenario = 'random,cold_drug'
+        args.use_hypergraph = 'kan_aggregated'
+        args.drug_jk = 'last'
 
     # 设置日志输出到当前目录。不同 run_tag 使用独立日志，避免并行实验互相覆盖。
     import sys
@@ -682,7 +764,109 @@ def main():
     if args.ablation == 'mlp_frontend_tasks':
         task_options = ['classification', 'regression']
 
-    if args.ablation in ['kagcn_regression', 'mlp_frontend_tasks']:
+    if args.ablation == 'original_kagnn_mlp':
+        task_options = ['classification']
+        ablation_variants = [
+            {
+                'label': 'DDoS_GCN',
+                'gnn_type': 'gcn',
+                'use_kan': False,
+                'use_drug_kan': False,
+                'use_hypergraph_kan': False,
+                'trainer': 'deepdds',
+            },
+            {
+                'label': 'PaperKAGCN',
+                'gnn_type': 'paper_kagcn',
+                'use_kan': True,
+                'use_drug_kan': True,
+                'use_hypergraph_kan': False,
+                'trainer': 'deepdds',
+            },
+        ]
+        gnn_types = [v['label'] for v in ablation_variants]
+    elif args.ablation == 'paper_kagcn_cell_graph':
+        task_options = ['classification']
+        ablation_variants = [
+            {
+                'label': 'PaperKAGCN_CellMLP',
+                'gnn_type': 'paper_kagcn',
+                'use_kan': True,
+                'use_drug_kan': True,
+                'use_hypergraph_kan': False,
+                'cell_encoder_type': 'mlp',
+            },
+            {
+                'label': 'PaperKAGCN_CellGraph',
+                'gnn_type': 'paper_kagcn',
+                'use_kan': True,
+                'use_drug_kan': True,
+                'use_hypergraph_kan': False,
+                'cell_encoder_type': 'gene_graph',
+            },
+        ]
+        gnn_types = [v['label'] for v in ablation_variants]
+    elif args.ablation == 'ddos_cluster_prior':
+        task_options = ['classification']
+        ablation_variants = [
+            {
+                'label': 'DDoS_GCN',
+                'gnn_type': 'gcn',
+                'use_kan': False,
+                'use_drug_kan': False,
+                'use_hypergraph_kan': False,
+                'trainer': 'deepdds',
+                'use_pair_cluster_prior': False,
+            },
+            {
+                'label': 'DDoS_GCN_CLUSTER',
+                'gnn_type': 'gcn',
+                'use_kan': False,
+                'use_drug_kan': False,
+                'use_hypergraph_kan': False,
+                'trainer': 'deepdds',
+                'use_pair_cluster_prior': True,
+            },
+        ]
+        gnn_types = [v['label'] for v in ablation_variants]
+    elif args.ablation == 'pair_edge_modes':
+        task_options = ['classification']
+        ablation_variants = [
+            {
+                'label': 'Agg_shared',
+                'gnn_type': 'gcn',
+                'use_kan': True,
+                'use_drug_kan': False,
+                'use_hypergraph_kan': True,
+                'pair_edge_mode': 'shared_drug',
+            },
+            {
+                'label': 'Agg_molknn',
+                'gnn_type': 'gcn',
+                'use_kan': True,
+                'use_drug_kan': False,
+                'use_hypergraph_kan': True,
+                'pair_edge_mode': 'molecular_knn',
+            },
+            {
+                'label': 'Agg_shared_molknn',
+                'gnn_type': 'gcn',
+                'use_kan': True,
+                'use_drug_kan': False,
+                'use_hypergraph_kan': True,
+                'pair_edge_mode': 'shared_plus_molecular_knn',
+            },
+            {
+                'label': 'Agg_randomknn',
+                'gnn_type': 'gcn',
+                'use_kan': True,
+                'use_drug_kan': False,
+                'use_hypergraph_kan': True,
+                'pair_edge_mode': 'random_knn',
+            },
+        ]
+        gnn_types = [v['label'] for v in ablation_variants]
+    elif args.ablation in ['kagcn_regression', 'mlp_frontend_tasks']:
         use_hypergraph_kan = args.ablation == 'kagcn_regression'
         ablation_variants = [
             {
@@ -896,6 +1080,16 @@ def main():
                     tp['use_drug_kan'] = use_drug_kan
                     tp['use_hypergraph_kan'] = use_hypergraph_kan
                     tp['variant_group'] = variant.get('label') or gnn_type.upper()
+                    if variant.get('trainer'):
+                        tp['trainer'] = variant['trainer']
+                    if 'use_pair_cluster_prior' in variant:
+                        tp['use_pair_cluster_prior'] = variant['use_pair_cluster_prior']
+                    if 'pair_edge_mode' in variant:
+                        tp['pair_edge_mode'] = variant['pair_edge_mode']
+                    if 'pair_knn_k' in variant:
+                        tp['pair_knn_k'] = variant['pair_knn_k']
+                    if 'cell_encoder_type' in variant:
+                        tp['cell_encoder_type'] = variant['cell_encoder_type']
 
                     # 生成实验名称
                     variant_label = effective_variant_label(
@@ -915,6 +1109,14 @@ def main():
                         exp_name_parts.append(f"jk{args.drug_jk}")
                     if args.use_drug_readout_kan:
                         exp_name_parts.append("drugreadoutkan")
+                    if tp.get('use_pair_cluster_prior'):
+                        exp_name_parts.append(f"pairclusterk{tp.get('pair_cluster_k', args.pair_cluster_k)}")
+                    if hypergraph_mode == 'kan_aggregated':
+                        exp_name_parts.append(tp.get('pair_edge_mode', args.pair_edge_mode))
+                        if tp.get('pair_edge_mode') in ['molecular_knn', 'shared_plus_molecular_knn', 'random_knn']:
+                            exp_name_parts.append(f"knn{tp.get('pair_knn_k', args.pair_knn_k)}")
+                    if tp.get('cell_encoder_type', 'mlp') != 'mlp':
+                        exp_name_parts.append(tp.get('cell_encoder_type'))
 
                     exp_name = "_".join(exp_name_parts)
 
@@ -943,7 +1145,8 @@ def main():
         hg_mode = tp.get('hypergraph_mode', 'mlp')
         print(
             f"  {i+1}. {exp_name:<40} (GPU {gpu_id}) "
-            f"[DrugKAN:{drug_kan_status} HgKAN:{hg_kan_status} HG:{hg_mode}]"
+            f"[DrugKAN:{drug_kan_status} HgKAN:{hg_kan_status} HG:{hg_mode} "
+            f"Cell:{tp.get('cell_encoder_type', 'mlp')}]"
         )
 
     # 并行运行所有实验

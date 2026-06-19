@@ -18,10 +18,12 @@ from deepadr.utilities import *
 from deepadr.chemfeatures import *
 from deepadr.model_gnn_ogb import GNN, GATNet, DeepAdr_SiameseTrf, ExpressionNN, DeepSynergy, DeepDDS_MLP
 from deepadr.model_attn_siamese import GeneEmbAttention, GeneEmbProjAttention
+from deepadr.model_kagnn import KAGNN
 from ogb.graphproppred import Evaluator
 
 import json
 import functools
+from pathlib import Path
 
 fdtype = torch.float32
 
@@ -56,6 +58,69 @@ def build_predictions_df(ids, true_class, pred_class, prob_scores):
     predictions_df = pd.DataFrame(df_dict)
     predictions_df.set_index('id', inplace=True)
     return predictions_df
+
+
+def build_pair_cluster_prior(used_dataset, partition, tp, exp_dir, device):
+    """Build per-sample cluster positive-rate priors from train labels only."""
+    cluster_dir = tp.get("pair_cluster_dir")
+    if cluster_dir:
+        cluster_dir = Path(cluster_dir)
+    else:
+        cluster_dir = Path(used_dataset.root) / "experiments" / "pair_cluster_modes"
+
+    sample_table_path = cluster_dir / "sample_pair_table.csv"
+    cluster_path = cluster_dir / "pair_cluster_assignments.csv"
+    if not sample_table_path.exists() or not cluster_path.exists():
+        raise FileNotFoundError(
+            f"Pair cluster files not found in {cluster_dir}. "
+            "Run graphnn/analyze_pair_cluster_modes.py first."
+        )
+
+    k = int(tp.get("pair_cluster_k", 128))
+    cluster_col = f"k{k}"
+    sample_table = pd.read_csv(sample_table_path, usecols=["sample_idx", "pair_idx"])
+    cluster_df = pd.read_csv(cluster_path, usecols=["pair_idx", cluster_col])
+
+    if len(sample_table) != len(used_dataset):
+        raise ValueError(
+            f"Pair cluster sample table length {len(sample_table)} does not match dataset length {len(used_dataset)}"
+        )
+
+    pair_to_cluster = cluster_df.set_index("pair_idx")[cluster_col]
+    sample_clusters = sample_table["pair_idx"].map(pair_to_cluster).to_numpy(dtype=np.int64)
+    sample_indices = sample_table["sample_idx"].to_numpy(dtype=np.int64)
+
+    y = used_dataset.data.y.cpu().numpy().reshape(-1).astype(float)
+    train_idx = np.asarray(partition["train"], dtype=np.int64)
+    train_clusters = sample_clusters[train_idx]
+    train_y = y[train_idx]
+
+    global_rate = float(train_y.mean())
+    smoothing = float(tp.get("pair_cluster_smoothing", 5.0))
+    priors = np.full(int(sample_clusters.max()) + 1, global_rate, dtype=np.float32)
+    for cluster_id in np.unique(train_clusters):
+        mask = train_clusters == cluster_id
+        count = float(mask.sum())
+        pos = float(train_y[mask].sum())
+        priors[int(cluster_id)] = (pos + smoothing * global_rate) / (count + smoothing)
+
+    sample_prior = priors[sample_clusters].astype(np.float32)
+    ordered_prior = np.empty_like(sample_prior)
+    ordered_prior[sample_indices] = sample_prior
+
+    stats = {
+        "pair_cluster_dir": str(cluster_dir),
+        "pair_cluster_k": k,
+        "pair_cluster_smoothing": smoothing,
+        "train_global_pos_rate": global_rate,
+        "cluster_prior_min": float(ordered_prior.min()),
+        "cluster_prior_max": float(ordered_prior.max()),
+        "cluster_prior_mean": float(ordered_prior.mean()),
+    }
+    with open(os.path.join(exp_dir, "pair_cluster_prior_stats.json"), "w") as f:
+        json.dump(stats, f, indent=2)
+
+    return torch.tensor(ordered_prior, dtype=fdtype, device=device).view(-1, 1)
 
 
 def run_exp_deepdds(queue, used_dataset, gpu_num, tp, exp_dir, partition): #
@@ -97,17 +162,50 @@ def run_exp_deepdds(queue, used_dataset, gpu_num, tp, exp_dir, partition): #
 #                 with_edge_attr=False).to(device=device_gpu, dtype=fdtype)
 
 
-    gnn_model = GATNet(num_features_xd=9,
-                       n_output=2,
-                       output_dim=tp["emb_dim"],
-                       dropout=tp['p_dropout'],
-                       heads=tp["num_attn_heads"]).to(device=device_gpu, dtype=fdtype)
+    gnn_type = tp.get("gnn_type", "gatnet")
+    use_kan = tp.get("use_kan", False)
+    kan_type = tp.get("kan_type", "fourier")
+    drug_encoder_uses_atom_encoder = gnn_type != "gatnet"
+
+    if drug_encoder_uses_atom_encoder:
+        gnn_model = KAGNN(
+            gnn_type=gnn_type,
+            num_layer=tp["num_layer"],
+            emb_dim=tp["emb_dim"],
+            drop_ratio=tp['p_dropout'],
+            JK=tp.get("drug_jk", "last"),
+            graph_pooling=tp["graph_pooling"],
+            virtual_node=False,
+            with_edge_attr=False,
+            use_kan=use_kan,
+            kan_type=kan_type,
+            use_readout_kan=tp.get("use_drug_readout_kan", False)
+        ).to(device=device_gpu, dtype=fdtype)
+    else:
+        gnn_model = GATNet(num_features_xd=9,
+                           n_output=2,
+                           output_dim=tp["emb_dim"],
+                           dropout=tp['p_dropout'],
+                           heads=tp["num_attn_heads"]).to(device=device_gpu, dtype=fdtype)
+
+    def encode_drug(batch_x, edge_index, edge_attr, batch_index):
+        if drug_encoder_uses_atom_encoder:
+            return gnn_model(batch_x.long(), edge_index, edge_attr, batch_index)
+        return gnn_model(batch_x.type(fdtype), edge_index, edge_attr, batch_index)
 
 
     expression_model = ExpressionNN(D_in=tp["expression_input_size"],
                                    H1=tp['exp_H1'], H2=tp['exp_H2'], D_out=(2*tp["emb_dim"]), drop=tp['p_dropout']).to(device=device_gpu, dtype=fdtype)
     
-    classification_model = DeepDDS_MLP(D_in=(4*tp["emb_dim"]),
+    pair_cluster_prior = None
+    extra_input_dim = 0
+    if tp.get("use_pair_cluster_prior", False):
+        pair_cluster_prior = build_pair_cluster_prior(
+            used_dataset, partition, tp, exp_dir, device_gpu
+        )
+        extra_input_dim += 1
+
+    classification_model = DeepDDS_MLP(D_in=(4*tp["emb_dim"] + extra_input_dim),
                                    H1=tp['exp_H1'], H2=tp['exp_H2'], H3=tp['emb_dim'], drop=tp['p_dropout']).to(device=device_gpu, dtype=fdtype)
 
     models_param = list(gnn_model.parameters()) + list(expression_model.parameters()) + list(classification_model.parameters())
@@ -160,14 +258,16 @@ def run_exp_deepdds(queue, used_dataset, gpu_num, tp, exp_dir, partition): #
         for i_batch, batch in enumerate(tqdm(train_loader, desc="Iteration")):
             batch = batch.to(device_gpu)
 
-            h_a = gnn_model(batch.x_a.type(fdtype), batch.edge_index_a, batch.edge_attr_a, batch.x_a_batch)
-            h_b = gnn_model(batch.x_b.type(fdtype), batch.edge_index_b, batch.edge_attr_b, batch.x_b_batch)
+            h_a = encode_drug(batch.x_a, batch.edge_index_a, batch.edge_attr_a, batch.x_a_batch)
+            h_b = encode_drug(batch.x_b, batch.edge_index_b, batch.edge_attr_b, batch.x_b_batch)
             
             expression_norm = expression_scaler.transform_ondevice(batch.expression, device=device_gpu)
             
             h_e = expression_model(expression_norm)
             
             triplet = torch.cat([h_a, h_b, h_e], axis=-1)
+            if pair_cluster_prior is not None:
+                triplet = torch.cat([triplet, pair_cluster_prior[batch.id.long()]], axis=-1)
 
             logsoftmax_scores = classification_model(triplet)
 
@@ -196,14 +296,16 @@ def run_exp_deepdds(queue, used_dataset, gpu_num, tp, exp_dir, partition): #
             for i_batch, batch in enumerate(tqdm(loaders[dsettype], desc="Iteration")):
                 batch = batch.to(device_gpu)
                 
-                h_a = gnn_model(batch.x_a.type(fdtype), batch.edge_index_a, batch.edge_attr_a, batch.x_a_batch)
-                h_b = gnn_model(batch.x_b.type(fdtype), batch.edge_index_b, batch.edge_attr_b, batch.x_b_batch)
+                h_a = encode_drug(batch.x_a, batch.edge_index_a, batch.edge_attr_a, batch.x_a_batch)
+                h_b = encode_drug(batch.x_b, batch.edge_index_b, batch.edge_attr_b, batch.x_b_batch)
 
                 expression_norm = expression_scaler.transform_ondevice(batch.expression, device=device_gpu)
 
                 h_e = expression_model(expression_norm)
 
                 triplet = torch.cat([h_a, h_b, h_e], axis=-1)
+                if pair_cluster_prior is not None:
+                    triplet = torch.cat([triplet, pair_cluster_prior[batch.id.long()]], axis=-1)
 
                 logsoftmax_scores = classification_model(triplet)
 

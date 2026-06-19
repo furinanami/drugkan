@@ -356,8 +356,66 @@ class KANHypergraphEncoder(nn.Module):
 class KANAggregatedGraphBuilder:
     """为KAN聚合版构建普通图结构（将药物对聚合后与细胞构成边）"""
 
-    @staticmethod
-    def build_graph(batch_data, drug_emb_a, drug_emb_b, cell_emb):
+    def __init__(self, pair_edge_mode='shared_drug', pair_knn_k=5, pair_edge_seed=42):
+        self.pair_edge_mode = pair_edge_mode
+        self.pair_knn_k = int(pair_knn_k)
+        self.pair_edge_seed = int(pair_edge_seed)
+
+    def _stable_pair_seed(self, pair_id):
+        a, b = pair_id
+        return (self.pair_edge_seed + int(a) * 1000003 + int(b) * 9176) % (2 ** 32 - 1)
+
+    def _add_shared_drug_edges(self, edge_set, unique_drug_pairs, node_mapping):
+        for i, pair_i in enumerate(unique_drug_pairs):
+            idx_i = node_mapping[('drug_pair', pair_i)]
+            drugs_i = set(pair_i)
+            for pair_j in unique_drug_pairs[i + 1:]:
+                if drugs_i.intersection(pair_j):
+                    idx_j = node_mapping[('drug_pair', pair_j)]
+                    edge_set.add((idx_i, idx_j))
+                    edge_set.add((idx_j, idx_i))
+
+    def _add_molecular_knn_edges(self, edge_set, unique_drug_pairs, node_mapping, node_features):
+        n_pairs = len(unique_drug_pairs)
+        if n_pairs <= 1 or self.pair_knn_k <= 0:
+            return
+
+        pair_indices = torch.tensor(
+            [node_mapping[('drug_pair', pair_id)] for pair_id in unique_drug_pairs],
+            dtype=torch.long,
+            device=node_features.device
+        )
+        pair_features = F.normalize(node_features[pair_indices], p=2, dim=-1)
+        sim = pair_features @ pair_features.t()
+        sim.fill_diagonal_(-float('inf'))
+
+        k = min(self.pair_knn_k, n_pairs - 1)
+        knn = torch.topk(sim, k=k, dim=1).indices.cpu().numpy()
+        for i, nbrs in enumerate(knn):
+            idx_i = int(pair_indices[i].item())
+            for j in nbrs:
+                idx_j = int(pair_indices[int(j)].item())
+                edge_set.add((idx_i, idx_j))
+                edge_set.add((idx_j, idx_i))
+
+    def _add_random_knn_edges(self, edge_set, unique_drug_pairs, node_mapping):
+        n_pairs = len(unique_drug_pairs)
+        if n_pairs <= 1 or self.pair_knn_k <= 0:
+            return
+
+        k = min(self.pair_knn_k, n_pairs - 1)
+        all_indices = np.arange(n_pairs)
+        for i, pair_i in enumerate(unique_drug_pairs):
+            rng = np.random.RandomState(self._stable_pair_seed(pair_i))
+            candidates = all_indices[all_indices != i]
+            chosen = rng.choice(candidates, size=k, replace=False)
+            idx_i = node_mapping[('drug_pair', pair_i)]
+            for j in chosen:
+                idx_j = node_mapping[('drug_pair', unique_drug_pairs[int(j)])]
+                edge_set.add((idx_i, idx_j))
+                edge_set.add((idx_j, idx_i))
+
+    def build_graph(self, batch_data, drug_emb_a, drug_emb_b, cell_emb):
         """
         构建KAN聚合版图结构
 
@@ -435,7 +493,7 @@ class KANAggregatedGraphBuilder:
         # 平均化（处理重复节点）
         node_features = node_features / node_counts.unsqueeze(1).clamp(min=1)
 
-        # 5. 当前batch内pair-cell边；pair-pair边表示batch内药物对共享单药。
+        # 5. 当前batch内pair-cell边；pair-pair边由 pair_edge_mode 控制。
         edge_set = set()
 
         for i in range(batch_size):
@@ -444,14 +502,23 @@ class KANAggregatedGraphBuilder:
             edge_set.add((idx_pair, idx_c))
             edge_set.add((idx_c, idx_pair))
 
-        for i, pair_i in enumerate(unique_drug_pairs):
-            idx_i = node_mapping[('drug_pair', pair_i)]
-            drugs_i = set(pair_i)
-            for pair_j in unique_drug_pairs[i + 1:]:
-                if drugs_i.intersection(pair_j):
-                    idx_j = node_mapping[('drug_pair', pair_j)]
-                    edge_set.add((idx_i, idx_j))
-                    edge_set.add((idx_j, idx_i))
+        if self.pair_edge_mode in ['shared_drug', 'shared_plus_molecular_knn']:
+            self._add_shared_drug_edges(edge_set, unique_drug_pairs, node_mapping)
+        elif self.pair_edge_mode == 'none':
+            pass
+
+        if self.pair_edge_mode in ['molecular_knn', 'shared_plus_molecular_knn']:
+            self._add_molecular_knn_edges(edge_set, unique_drug_pairs, node_mapping, node_features)
+        elif self.pair_edge_mode == 'random_knn':
+            self._add_random_knn_edges(edge_set, unique_drug_pairs, node_mapping)
+        elif self.pair_edge_mode not in [
+            'none',
+            'shared_drug',
+            'molecular_knn',
+            'shared_plus_molecular_knn',
+            'random_knn',
+        ]:
+            raise ValueError(f"Unknown pair_edge_mode: {self.pair_edge_mode}")
 
         if len(edge_set) == 0:
             # 防御空batch
@@ -632,6 +699,70 @@ class KANDecoder(nn.Module):
         return self.log_softmax(x)
 
 
+class GeneGraphExpressionEncoder(nn.Module):
+    """Encode cell-line expression with a fixed gene-gene graph."""
+    def __init__(self, num_genes, hidden_channels=128, out_channels=256,
+                 num_layers=2, dropout=0.2, use_kan=False, kan_type='fourier',
+                 edge_index=None):
+        super().__init__()
+        self.num_genes = int(num_genes)
+        self.hidden_channels = hidden_channels
+
+        if edge_index is None:
+            edge_index = torch.zeros(2, 0, dtype=torch.long)
+        self.register_buffer('edge_index', edge_index.long())
+
+        self.value_encoder = nn.Linear(1, hidden_channels)
+        self.gene_embedding = nn.Embedding(self.num_genes, hidden_channels)
+        self.convs = nn.ModuleList([
+            KAGCNConv(hidden_channels, hidden_channels, use_kan=use_kan, kan_type=kan_type)
+            for _ in range(num_layers)
+        ])
+        self.norms = nn.ModuleList([
+            nn.BatchNorm1d(hidden_channels) for _ in range(num_layers)
+        ])
+        self.out_proj = nn.Sequential(
+            nn.Linear(hidden_channels, out_channels),
+            nn.BatchNorm1d(out_channels),
+            nn.ReLU()
+        )
+        self.dropout = nn.Dropout(dropout)
+
+    def _batched_edge_index(self, batch_size, device):
+        if self.edge_index.numel() == 0:
+            return self.edge_index.to(device)
+
+        num_edges = self.edge_index.size(1)
+        offsets = (
+            torch.arange(batch_size, device=device)
+            .repeat_interleave(num_edges) * self.num_genes
+        )
+        return self.edge_index.to(device).repeat(1, batch_size) + offsets.unsqueeze(0)
+
+    def forward(self, expression):
+        batch_size, num_genes = expression.shape
+        if num_genes != self.num_genes:
+            raise ValueError(f"Expected {self.num_genes} genes, got {num_genes}.")
+
+        gene_ids = torch.arange(num_genes, device=expression.device)
+        gene_emb = self.gene_embedding(gene_ids).unsqueeze(0).expand(batch_size, -1, -1)
+        value_emb = self.value_encoder(expression.reshape(-1, 1)).view(
+            batch_size, num_genes, self.hidden_channels
+        )
+        h = (value_emb + gene_emb).reshape(batch_size * num_genes, self.hidden_channels)
+
+        edge_index = self._batched_edge_index(batch_size, expression.device)
+        for layer_idx, (conv, norm) in enumerate(zip(self.convs, self.norms)):
+            h = conv(h, edge_index)
+            h = norm(h)
+            h = F.relu(h)
+            if layer_idx < len(self.convs) - 1:
+                h = self.dropout(h)
+
+        h_graph = h.view(batch_size, num_genes, self.hidden_channels).mean(dim=1)
+        return self.out_proj(h_graph)
+
+
 class DeepDDS_Hypergraph(nn.Module):
     """
     集成超图的DeepDDS模型（支持多种模式）
@@ -664,9 +795,19 @@ class DeepDDS_Hypergraph(nn.Module):
                  use_drug_readout_kan=False,
                  gnn_type='gcn',
                  num_layer=5,
+                 paper_node_feature_dim=None,
+                 paper_edge_feature_dim=None,
                  drug_jk='last',
                  graph_pooling='mean',
                  decoder_type='mlp',
+                 pair_edge_mode='shared_drug',
+                 pair_knn_k=5,
+                 pair_edge_seed=42,
+                 cell_encoder_type='mlp',
+                 cell_graph_edge_index=None,
+                 cell_graph_hidden=128,
+                 cell_graph_layers=2,
+                 cell_graph_use_kan=False,
                  task='classification'):
         super().__init__()
 
@@ -674,6 +815,13 @@ class DeepDDS_Hypergraph(nn.Module):
         self.use_drug_kan = use_drug_kan
         self.task = task
         self.decoder_type = 'kan' if hypergraph_mode == 'kan_mlp' else decoder_type
+        self.pair_edge_mode = pair_edge_mode
+        self.cell_encoder_type = cell_encoder_type
+        self.drug_features_are_raw_float = (
+            gnn_type in ['paper_kagcn', 'ka_gcn_paper', 'kagcn_paper']
+            and paper_node_feature_dim is not None
+            and paper_edge_feature_dim is not None
+        )
 
         # Stage 1: 药物编码器
         self.drug_encoder_uses_atom_encoder = gnn_type != 'gatnet'
@@ -689,7 +837,9 @@ class DeepDDS_Hypergraph(nn.Module):
                 with_edge_attr=False,
                 use_kan=use_drug_kan,
                 kan_type=kan_type,
-                use_readout_kan=use_drug_readout_kan
+                use_readout_kan=use_drug_readout_kan,
+                paper_node_feature_dim=paper_node_feature_dim,
+                paper_edge_feature_dim=paper_edge_feature_dim
             )
         else:
             self.drug_encoder = GATNet(
@@ -700,13 +850,25 @@ class DeepDDS_Hypergraph(nn.Module):
                 heads=num_attn_heads
             )
 
-        self.expression_encoder = ExpressionNN(
-            D_in=expression_input_size,
-            H1=exp_H1,
-            H2=exp_H2,
-            D_out=2*unified_dim,  # 输出256维
-            drop=dropout
-        )
+        if self.cell_encoder_type == 'gene_graph':
+            self.expression_encoder = GeneGraphExpressionEncoder(
+                num_genes=expression_input_size,
+                hidden_channels=cell_graph_hidden,
+                out_channels=2*unified_dim,
+                num_layers=cell_graph_layers,
+                dropout=dropout,
+                use_kan=cell_graph_use_kan,
+                kan_type=kan_type,
+                edge_index=cell_graph_edge_index
+            )
+        else:
+            self.expression_encoder = ExpressionNN(
+                D_in=expression_input_size,
+                H1=exp_H1,
+                H2=exp_H2,
+                D_out=2*unified_dim,  # 输出256维
+                drop=dropout
+            )
 
         # Stage 2: 嵌入对齐
         self.embedding_aligner = EmbeddingAligner(
@@ -753,7 +915,11 @@ class DeepDDS_Hypergraph(nn.Module):
                 use_kan=use_kan,
                 kan_type=kan_type
             )
-            self.kan_graph_builder = KANAggregatedGraphBuilder()
+            self.kan_graph_builder = KANAggregatedGraphBuilder(
+                pair_edge_mode=pair_edge_mode,
+                pair_knn_k=pair_knn_k,
+                pair_edge_seed=pair_edge_seed,
+            )
         # else: mlp模式不需要图编码器
 
         # Stage 4: 解码器
@@ -774,6 +940,8 @@ class DeepDDS_Hypergraph(nn.Module):
 
     def _encode_drug(self, x, edge_index, edge_attr, batch):
         if self.drug_encoder_uses_atom_encoder:
+            if self.drug_features_are_raw_float:
+                return self.drug_encoder(x.float(), edge_index, edge_attr, batch)
             return self.drug_encoder(x.long(), edge_index, edge_attr, batch)
         return self.drug_encoder(x.type(torch.float32), edge_index, edge_attr, batch)
 

@@ -2,13 +2,18 @@ import numpy as np
 import pandas as pd
 import torch
 import torch.utils.data as Data
-from model import BioEncoder, HypergraphSynergy, HgnnEncoder, Decoder
 from sklearn.model_selection import KFold
 import os
 import glob
 import sys
 
-sys.path.append('..')
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+MODEL_DIR = os.path.dirname(SCRIPT_DIR)
+os.chdir(MODEL_DIR)
+if MODEL_DIR not in sys.path:
+    sys.path.insert(0, MODEL_DIR)
+
+from model import BioEncoder, HypergraphSynergy, HgnnEncoder, Decoder
 from drug_util import GraphDataset, collate
 from utils import metrics_graph, set_seed_all
 from similarity import get_Cosin_Similarity, get_pvalue_matrix
@@ -95,15 +100,16 @@ def test(drug_fea_set, cline_fea_set, synergy_adj, index, label, alpha):
 
 
 if __name__ == '__main__':
-    dataset_name = 'ALMANAC'  # or ONEIL
-    seed = 0
-    cv_mode_ls = [1, 2, 3]
-    epochs = 2000
-    learning_rate = 0.0001
-    L2 = 1e-4
-    alpha = 0.4
+    dataset_name = os.environ.get('HGS_DATASET', 'ALMANAC')  # or ONEIL
+    seed = int(os.environ.get('HGS_SEED', 0))
+    cv_mode_ls = [int(i) for i in os.environ.get('HGS_CV_MODES', '1,2,3').split(',')]
+    epochs = int(os.environ.get('HGS_EPOCHS', 2000))
+    learning_rate = float(os.environ.get('HGS_LR', 0.0001))
+    L2 = float(os.environ.get('HGS_L2', 1e-4))
+    alpha = float(os.environ.get('HGS_ALPHA', 0.4))
     for cv_mode in cv_mode_ls:
         path = 'result_cls/' + dataset_name + '_' + str(cv_mode) + '_'
+        os.makedirs(os.path.dirname(path), exist_ok=True)
         file = open(path + 'result.txt', 'w')
         set_seed_all(seed)
         drug_feature, cline_feature, synergy_data, drug_sim_mat, cline_sim_mat = load_data(dataset_name)
@@ -141,8 +147,8 @@ if __name__ == '__main__':
             np.savetxt(path + 'val_' + str(fold_num) + '_true.txt', synergy_validation[:, 3])
             label_train = torch.from_numpy(np.array(synergy_train[:, 3], dtype='float32')).to(device)
             label_validation = torch.from_numpy(np.array(synergy_validation[:, 3], dtype='float32')).to(device)
-            index_train = torch.from_numpy(synergy_train).to(device)
-            index_validation = torch.from_numpy(synergy_validation).to(device)
+            index_train = torch.from_numpy(synergy_train[:, 0:3]).long().to(device)
+            index_validation = torch.from_numpy(synergy_validation[:, 0:3]).long().to(device)
             # -----construct hyper_synergy_graph_set
             edge_data = synergy_train[synergy_train[:, 3] == 1, 0:3]
             synergy_edge = edge_data.reshape(1, -1)
